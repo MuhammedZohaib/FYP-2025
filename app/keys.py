@@ -1,0 +1,24 @@
+from dotenv import load_dotenv
+
+env_path = "../../env"
+load_dotenv(env_path)
+
+SECRET_KEY = "f4e7e7b1"
+TOKEN_EXPIRE_MINUTES = 300
+MONGO_URI = "mongodb+srv://root:admin@cluster0.wml8kuz.mongodb.net"
+DB_NAME = "fyp_db"
+ORIGINS = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:8080",
+    "http://localhost:4200",
+    "http://localhost:5173",
+]
+
+MAIL_USERNAME = 'ar5414929@gmail.com'
+MAIL_PASSWORD = 'ublz hxxh aaau mkhg'
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_TLS = True
+MAIL_SSL = False
