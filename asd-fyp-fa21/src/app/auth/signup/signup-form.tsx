@@ -17,7 +17,7 @@ export default function SignUpForm() {
       location: "",
       confirmPassword: "",
       phone: "",
-    },
+    }
   });
 
   const fields: Field[] = [
@@ -33,5 +33,5 @@ export default function SignUpForm() {
     console.log(data);
   };
 
-  return <DynamicForm form={form} fields={fields} onSubmit={onSubmit} />;
+  return <DynamicForm form={form} fields={fields} onSubmit={onSubmit} content="Signup to Dashboard" />;
 }

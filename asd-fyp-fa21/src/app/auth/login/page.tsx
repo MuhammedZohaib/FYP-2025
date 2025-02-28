@@ -2,6 +2,7 @@ import Divider from "@/components/ui/divider";
 import LoginForm from "./LoginForm";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
+import Link from "next/link";
 
 export default function Login() {
   return (
@@ -20,6 +21,11 @@ export default function Login() {
       </div>
       <Divider />
       <LoginForm />
+      <Link href="signup" className="block w-full py-4">
+        <Button type="button" className="py-6 w-full">
+          Signup to Dashboard
+        </Button>
+      </Link>
     </>
   );
 }

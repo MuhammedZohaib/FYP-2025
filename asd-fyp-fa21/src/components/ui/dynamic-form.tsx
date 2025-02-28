@@ -5,23 +5,25 @@ import { Form, FormField, FormItem, FormLabel, FormMessage } from "./form";
 import { Input } from "./input";
 import AuthButton from "./auth-button";
 import { z, ZodType } from "zod";
+import { Field } from "@/types/field";
 
 export default function DynamicForm<T extends Record<string, string | number>>({
   form,
   fields,
   onSubmit,
+  content,
 }: {
   form: UseFormReturn<T>;
-  fields: { name: string; type: string; label: string }[];
-  onSubmit: (data: z.infer<ZodType<T>>) => void;
+  fields: Field[];
+  onSubmit: (data: z.infer<ZodType<T>>) => unknown;
+  content: React.ReactNode;
 }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
         {fields.map(({ name, type, label, child }) => (
-          <>
+          <div key={name}>
             <FormField
-              key={name}
               name={name as Path<T>}
               control={form.control}
               render={({ field }) => (
@@ -33,10 +35,10 @@ export default function DynamicForm<T extends Record<string, string | number>>({
               )}
             />
             {child}
-          </>
+          </div>
         ))}
         <AuthButton isLoading={form.formState.isSubmitting}>
-          Signup to Dashboard
+          {content}
         </AuthButton>
       </form>
     </Form>

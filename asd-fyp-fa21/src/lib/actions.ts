@@ -5,11 +5,9 @@ import { z } from "zod";
 
 const endpoint = "http://localhost:8000";
 
-type Login = z.infer<typeof loginSchema>;
-
-export async function login(formValue: Login) {
+export async function login(data: z.infer<typeof loginSchema>) {
   await new Promise((res) => setTimeout(res, 3000));
-  const result = loginSchema.safeParse(formValue);
+  const result = loginSchema.safeParse(data);
   if (!result.success) return result.error;
   console.log(result.data);
 }
