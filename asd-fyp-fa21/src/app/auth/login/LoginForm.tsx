@@ -16,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { FaArrowRight } from "react-icons/fa";
+import { login } from "@/lib/actions";
+import AuthButton from "@/components/ui/auth-button";
 
 export default function LoginForm() {
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -26,13 +28,9 @@ export default function LoginForm() {
     },
   });
 
-  function onSubmitForm(values: z.infer<typeof loginSchema>) {
-    console.log(values);
-  }
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmitForm)} className="grid gap-6">
+      <form onSubmit={form.handleSubmit(login)} className="grid gap-4">
         <FormField
           control={form.control}
           name="email"
@@ -40,7 +38,7 @@ export default function LoginForm() {
             <FormItem>
               <FormLabel className="font-bold">Email</FormLabel>
               <FormControl>
-                <Input {...field} type="text" className="py-6" />
+                <Input {...field} type="text" className="py-4" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -53,7 +51,7 @@ export default function LoginForm() {
             <FormItem>
               <FormLabel className="font-bold">Password</FormLabel>
               <FormControl>
-                <Input {...field} type="text" className="py-6" />
+                <Input {...field} type="text" className="py-4" />
               </FormControl>
               <FormMessage />
               <Link
@@ -66,15 +64,14 @@ export default function LoginForm() {
           )}
         />
 
-        <Button
-          type="submit"
-          className="bg-[#3476EF] hover:bg-[#3476EF]/90 py-6"
-        >
-          Login to Dashboard <FaArrowRight />
-        </Button>
-        <Button className="py-6" type="button">
-          Signup for the account
-        </Button>
+        <AuthButton isLoading={form.formState.isSubmitting}>
+          <p>Login to Dashboard</p> <FaArrowRight />
+        </AuthButton>
+        <Link href="signup" className="block w-full">
+          <Button type="button" className="py-6 w-full">
+            Signup to Dashboard
+          </Button>
+        </Link>
       </form>
     </Form>
   );
