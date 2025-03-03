@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import List
 
+from bson import ObjectId
+
 from DatabaseConnector import db
 
 
@@ -15,7 +17,6 @@ class FacialDataRecord:
                  prediction_result_in_encoded_category_of_yolo_model: int,
                  prediction_result_in_category_of_efficentnet_model: str,
                  prediction_result_in_category_of_yolo_model: str):
-        self._id = None
         self.patient_id = patient_id
         self.data = data
         self.date = date
@@ -39,7 +40,7 @@ class FacialDataRecord:
     @staticmethod
     def find_by_patient_id(patient_id: str):
         collection = db.get_collection('facial_records')
-        return collection.find({"patient_id": patient_id})
+        return collection.find({"patient_id": ObjectId(patient_id)})
 
     @staticmethod
     def count_facial_records():

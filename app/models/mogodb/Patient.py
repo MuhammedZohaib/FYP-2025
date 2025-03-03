@@ -12,7 +12,6 @@ class Patient:
                  eeg_data_records=None, speech_data_records=None):
         if speech_data_records is None:
             speech_data_records = []
-        self._id = None
         if facial_data_records is None:
             facial_data_records = []
         if eeg_data_records is None:
@@ -45,7 +44,7 @@ class Patient:
     @staticmethod
     def update(patient_id: str, update_data: dict):
         collection = db.get_collection('patients')
-        result = collection.update_one({"_id": ObjectId(patient_id)}, {"$set": update_data})
+        result = collection.update_one({"_id": patient_id}, {"$set": update_data})
         return result
 
     @staticmethod

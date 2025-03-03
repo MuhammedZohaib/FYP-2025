@@ -5,8 +5,9 @@ load_dotenv(env_path)
 
 SECRET_KEY = "f4e7e7b1"
 TOKEN_EXPIRE_MINUTES = 300
-MONGO_URI = "mongodb+srv://root:admin@cluster0.wml8kuz.mongodb.net"
-DB_NAME = "fyp_db"
+MONGO_URI = ("mongodb+srv://fa21bcs047:MyaGVNAPy1aB94D9@asd-fyp-fa21.9pcvp.mongodb.net/?retryWrites=true&w=majority"
+             "&appName=asd-fyp-fa21")
+DB_NAME = "asd-fyp-fa21"
 ORIGINS = [
     "http://localhost",
     "http://localhost:3000",

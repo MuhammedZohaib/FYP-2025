@@ -11,7 +11,6 @@ class EEGDataRecord:
                  delta_F_dx: str, theta_F_sx: str, theta_F_dx: str, low_alpha_F_sx: str, low_alpha_F_dx: str,
                  prediction_result_in_probability: float, predicted_probabilities: List[float],
                  prediction_result_in_encoded_category: int, prediction_result_in_category: str):
-        self._id = None
         self.patient_id = patient_id
         self.doctor_id = doctor_id
         self.result = result
@@ -31,8 +30,8 @@ class EEGDataRecord:
     def save(self):
         collection = db.get_collection('eeg_data')
         result = collection.insert_one(self.__dict__)
-        self._id = str(result.inserted_id)
-        return self._id
+        _id = str(result.inserted_id)
+        return _id
 
     @staticmethod
     def find_by_id(patient_id: str):
@@ -46,6 +45,6 @@ class EEGDataRecord:
 
     @staticmethod
     def count_eeg_records():
-        """Returns the total number of EEG records in the collection."""
         collection = db.get_collection('eeg_data')
         return collection.count_documents({})
+    

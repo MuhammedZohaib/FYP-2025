@@ -14,7 +14,6 @@ class Doctor:
             patients = []
         if consultations is None:
             consultations = []
-        self._id = None
         self.name = name
         self.email = email
         self.password = password

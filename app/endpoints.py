@@ -226,14 +226,11 @@ async def create_patient(patient: PatientSchema, request: Request):
         # 
         patient = patient.model_dump()
         patient["doctor"] = doctor_id
-
         new_patient = Patient(**patient)
-
         new_patient_id = new_patient.save()
         doctor = Doctor.find_by_id(doctor_id)
 
         if doctor:
-
             doctor = {**doctor, "_id": str(doctor["_id"])}
             doctor["patients"].append(new_patient_id)
             Doctor.update(doctor_id, doctor)
@@ -300,7 +297,6 @@ async def update_patient(patient_id: str, update_data: PatientSchema):
     return {"detail": "Patient updated successfully", "patient": patient_dict}
 
 
-# Route to register a new doctor
 @router.post('/register/doctor', status_code=status.HTTP_201_CREATED)
 async def register_doctor(doctor_info: DoctorSchema):
     existing_doctor = Doctor.find_by_email(doctor_info.email)

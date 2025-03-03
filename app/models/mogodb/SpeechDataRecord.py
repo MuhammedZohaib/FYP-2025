@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from bson import ObjectId
-
 from DatabaseConnector import db
 
 
@@ -11,7 +9,7 @@ class SpeechRecord:
         self.data = data
         self.date = created_at
         self.prediction = prediction
-        self.inserted_collection_id = None
+        self.inserted_collection_id = ""
 
     def save_speech_record(self):
         collection = db.get_collection('speech_records')
@@ -27,4 +25,4 @@ class SpeechRecord:
     @staticmethod
     def find_by_patient_id(patient_id: str):
         collection = db.get_collection('speech_records')
-        return collection.find({"patient_id": ObjectId(patient_id)})
+        return collection.find({"patient_id": patient_id})
