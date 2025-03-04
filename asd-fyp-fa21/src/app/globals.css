@@ -66,3 +66,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.bg-grid{
+    background:  url("../../public/bg-grid.png");
+    background-size: cover;
+    background-repeat: no-repeat;
+}

@@ -1,5 +1,5 @@
 import Divider from "@/components/ui/divider";
-import LoginForm from "./LoginForm";
+import LoginForm from "./login-form";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
 import Link from "next/link";

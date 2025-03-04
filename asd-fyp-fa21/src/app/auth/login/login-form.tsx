@@ -26,14 +26,12 @@ export default function LoginForm() {
       label: "Password",
       type: "password",
       child: (
-        <>
-          <Link
-            className="w-full pt-3 block text-right text-xs underline cursor-pointer"
-            href="#"
-          >
-            Forgot Password?
-          </Link>
-        </>
+        <Link
+          className="w-full pt-3 block text-right text-xs underline cursor-pointer"
+          href="#"
+        >
+          Forgot Password?
+        </Link>
       ),
     },
   ];
