@@ -283,7 +283,7 @@ async def get_patient(patient_id: str):
 async def update_patient(patient_id: str, update_data: PatientSchema):
     patient = Patient.find_by_id(patient_id)
     patient_dict = {**patient, "_id": str(patient["_id"])}
-    patient_dict.pop("_id")
+    patient_dict.pop("patient_id")
     if patient is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
@@ -392,9 +392,7 @@ async def check_token(request: Request):
 
 @router.post('/upload-eeg/{patient_id}', status_code=status.HTTP_200_OK)
 async def predict(patient_id: str, data: dict, request: Request):
-
     token = request.headers.get("access_token")
-    # 
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
     payload = verify_token(token)
@@ -408,6 +406,7 @@ async def predict(patient_id: str, data: dict, request: Request):
 
     patient_data.pop("_id")
     data.pop("name")
+    data.pop("patient_id")
 
     columns = ['group', 'time_point', 'delta_F_sx', 'delta_F_dx', 'theta_F_sx', 'theta_F_dx', 'low_alpha_F_sx',
                'low_alpha_F_dx', 'high_alpha_F_sx', 'high_alpha_F_dx', 'beta_F_sx', 'beta_F_dx', 'gamma_F_sx',
@@ -427,8 +426,6 @@ async def predict(patient_id: str, data: dict, request: Request):
     else:
         prediction_result_in_category = "atypical"
 
-    logger.info(f"Predicted class: {predicted_class}, Predicted probabilities: {predicted_probs}")
-
     eeg_data = EEGDataRecord(
         **data,
         doctor_id=doctor_id,
@@ -440,7 +437,8 @@ async def predict(patient_id: str, data: dict, request: Request):
         prediction_result_in_encoded_category=predicted_class,
         prediction_result_in_category=prediction_result_in_category
     )
-    patient_data["eeg_data_records"].append(eeg_data)
+    eeg_data.save()
+    patient_data["eeg_data_records"].append(eeg_data.__dict__)
     updated_patient = Patient.update(patient_id, patient_data)
     new_patient = Patient(**patient_data)
     if not updated_patient:
