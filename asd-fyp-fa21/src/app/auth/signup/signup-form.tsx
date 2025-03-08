@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { Field } from "@/types/field";
 import { z } from "zod";
 import { signupSchema } from "@/schemas/signup-schema";
+import { signup } from "@/lib/actions";
 import DynamicForm from "@/components/ui/dynamic-form";
 
 export default function SignUpForm() {
@@ -15,9 +16,10 @@ export default function SignUpForm() {
       email: "",
       password: "",
       location: "",
+      specialization: "",
       confirmPassword: "",
       phone: "",
-    }
+    },
   });
 
   const fields: Field[] = [
@@ -25,13 +27,26 @@ export default function SignUpForm() {
     { name: "email", label: "Email", type: "email" },
     { name: "location", label: "Location", type: "text" },
     { name: "phone", label: "Phone", type: "text" },
+    {name: "specialization", label: "Specialization", type: "text"},
     { name: "password", label: "Password", type: "password" },
     { name: "confirmPassword", label: "Confirm Password", type: "password" },
   ];
 
-  const onSubmit = (data: z.infer<typeof signupSchema>) => {
-    console.log(data);
+  const submitHandler = async (data: z.infer<typeof signupSchema>) => {
+    const res = await signup(data);
+
+    if (res?.error)
+      form.setError("email", {
+        message: res.error,
+      });
   };
 
-  return <DynamicForm form={form} fields={fields} onSubmit={onSubmit} content="Signup to Dashboard" />;
+  return (
+    <DynamicForm
+      form={form}
+      fields={fields}
+      onSubmit={submitHandler}
+      content="Signup to Dashboard"
+    />
+  );
 }

@@ -18,6 +18,7 @@ export const signupSchema = z
       .nonempty("Password is required"),
     confirmPassword: z.string(),
     location: z.string().nonempty("Location is required"),
+    specialization: z.string().nonempty("Specialization is required"),
     phone: z.string().nonempty("Phone Number is required"),
   })
   .refine((data) => data.password === data.confirmPassword, {

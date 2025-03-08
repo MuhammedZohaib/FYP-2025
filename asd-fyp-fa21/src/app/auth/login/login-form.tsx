@@ -9,6 +9,7 @@ import { Field } from "@/types/field";
 import DynamicForm from "@/components/ui/dynamic-form";
 import Link from "next/link";
 import { FaArrowRight } from "react-icons/fa";
+import { useState } from "react";
 
 export default function LoginForm() {
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -18,6 +19,8 @@ export default function LoginForm() {
       password: "",
     },
   });
+
+  const [err, setErr] = useState<{ error: string } | null>(null);
 
   const fields: Field[] = [
     { name: "email", label: "Email", type: "text" },
@@ -36,16 +39,28 @@ export default function LoginForm() {
     },
   ];
 
+  async function submitHandler(formData: z.infer<typeof loginSchema>) {
+    const error = await login(formData);
+    setErr(error);
+  }
+
   return (
-    <DynamicForm
-      form={form}
-      fields={fields}
-      onSubmit={login}
-      content={
-        <>
-          Login to Dashboard <FaArrowRight />
-        </>
-      }
-    />
+    <>
+      {err && (
+        <p className="bg-red-500/10 p-2 rounded-md mb-2 text-red-500 border solid border-red-500">
+          {err?.error}
+        </p>
+      )}
+      <DynamicForm
+        form={form}
+        fields={fields}
+        onSubmit={submitHandler}
+        content={
+          <>
+            Login to Dashboard <FaArrowRight />
+          </>
+        }
+      />
+    </>
   );
 }
