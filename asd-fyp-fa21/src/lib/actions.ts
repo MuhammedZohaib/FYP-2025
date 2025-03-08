@@ -21,11 +21,6 @@ type LoginResponseError = {
   detail: string;
 };
 
-type SignUpResponseSuccess = {
-  detail: string;
-  doctor: User;
-};
-
 export async function login(data: z.infer<typeof loginSchema>) {
   const result = loginSchema.safeParse(data);
   if (!result.success) return { error: "Invalid Credentials" };

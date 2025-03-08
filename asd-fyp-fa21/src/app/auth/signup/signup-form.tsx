@@ -23,11 +23,11 @@ export default function SignUpForm() {
   });
 
   const fields: Field[] = [
-    { name: "name", label: "Name", type: "text" },
-    { name: "email", label: "Email", type: "email" },
+    { name: "name", label: "Name", type: "text", className: "col-span-2"},
+    { name: "email", label: "Email", type: "email", className:"col-span-2" },
+    {name: "specialization", label: "Specialization", type: "text", className: "col-span-2"},
     { name: "location", label: "Location", type: "text" },
     { name: "phone", label: "Phone", type: "text" },
-    {name: "specialization", label: "Specialization", type: "text"},
     { name: "password", label: "Password", type: "password" },
     { name: "confirmPassword", label: "Confirm Password", type: "password" },
   ];
@@ -47,6 +47,8 @@ export default function SignUpForm() {
       fields={fields}
       onSubmit={submitHandler}
       content="Signup to Dashboard"
+      contentClass="col-span-2"
+      className="grid-cols-2"
     />
   );
 }

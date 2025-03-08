@@ -12,17 +12,21 @@ export default function DynamicForm<T extends Record<string, string | number>>({
   fields,
   onSubmit,
   content,
+  contentClass,
+  className,
 }: {
   form: UseFormReturn<T>;
   fields: Field[];
   onSubmit: (data: z.infer<ZodType<T>>) => unknown;
   content: React.ReactNode;
+    contentClass: string,
+    className?: string
 }) {
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-        {fields.map(({ name, type, label, child }) => (
-          <div key={name}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className={`grid gap-4 ${className ?? ''}`}>
+        {fields.map(({ name, type, label, child, className }) => (
+          <div key={name} className={`${className ?? ''}`}>
             <FormField
               name={name as Path<T>}
               control={form.control}
@@ -37,7 +41,7 @@ export default function DynamicForm<T extends Record<string, string | number>>({
             {child}
           </div>
         ))}
-        <AuthButton isLoading={form.formState.isSubmitting}>
+        <AuthButton isLoading={form.formState.isSubmitting} className={contentClass}>
           {content}
         </AuthButton>
       </form>
