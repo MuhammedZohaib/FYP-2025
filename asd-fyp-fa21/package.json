@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "backend": "cd ../app && sudo docker compose up --build",
+    "launch": "npm run backend & npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
