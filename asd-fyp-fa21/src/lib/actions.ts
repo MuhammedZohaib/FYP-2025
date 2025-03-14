@@ -25,7 +25,7 @@ export async function login(data: z.infer<typeof loginSchema>) {
   const result = loginSchema.safeParse(data);
   if (!result.success) return { error: "Invalid Credentials" };
 
-  const res = await fetch(`${endpoint}/login/doctor`, {
+  const res = await fetch(`${endpoint}/doctor/login`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -53,7 +53,7 @@ export async function signup(data: z.infer<typeof signupSchema>) {
   const result = signupSchema.safeParse(data);
   if (!result.success) return { error: "Bad Request" };
 
-  const res = await fetch(`${endpoint}/register/doctor`, {
+  const res = await fetch(`${endpoint}/doctor/register`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

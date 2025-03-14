@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "backend": "cd ../app && sudo docker compose up --build",
+    "start-win": "start npm run dev & cd ../app && start docker-compose up",
     "launch": "npm run backend & npm run dev",
     "build": "next build",
     "start": "next start",
@@ -14,6 +15,7 @@
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.2",
+    "@tabler/icons-react": "^3.31.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.476.0",

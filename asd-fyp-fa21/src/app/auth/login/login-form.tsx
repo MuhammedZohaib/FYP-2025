@@ -60,6 +60,7 @@ export default function LoginForm() {
             Login to Dashboard <FaArrowRight />
           </>
         }
+        contentClass={""}
       />
     </>
   );
