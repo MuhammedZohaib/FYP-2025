@@ -32,11 +32,12 @@ export default function Home() {
               <Button className="bg-blue-600 hover:bg-blue-700">
                 Book Consultation
               </Button>
+
               <Button
                 variant="outline"
                 className="border-gray-700 text-white hover:bg-gray-800"
               >
-                Go to the Dashboard
+                <Link href={"/dashboard"}>Go to the Dashboard</Link>
               </Button>
             </div>
           </div>
@@ -46,9 +47,9 @@ export default function Home() {
             <Image
               src="/image.jpg"
               alt="ASD Dashboard"
-              width={1000}
-              height={600}
-              className="rounded-lg border border-gray-800 shadow-2xl"
+              width={1200}
+              height={800}
+              className="rounded-lg border border-gray-800 shadow-2xl object-cover"
             />
           </div>
         </div>
