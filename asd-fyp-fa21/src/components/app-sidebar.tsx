@@ -141,7 +141,7 @@ export function AppSidebar() {
                     <SidebarMenuSub>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild>
-                          <Link href="/patients/add">Add Patient</Link>
+                          <Link href="/dashboard/patients/add">Add Patient</Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
