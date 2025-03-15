@@ -1,9 +1,9 @@
-version: '3'
+version: "3"
 services:
   api:
     build: .
     container_name: "fyp-fastapi"
-    command: uvicorn main:app --host 0.0.0.0 --port 15400 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 15400 --log-level info --reload
     ports:
       - "8000:15400"
     volumes:

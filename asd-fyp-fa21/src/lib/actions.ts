@@ -53,16 +53,21 @@ export async function signup(data: z.infer<typeof signupSchema>) {
   const result = signupSchema.safeParse(data);
   if (!result.success) return { error: "Bad Request" };
 
+  const { confirmPassword, ...dataToSend } = result.data;
+  console.log(dataToSend);
+
   const res = await fetch(`${endpoint}/doctor/register`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(result.data),
+    body: JSON.stringify(dataToSend),
   });
 
   if (res.status == 400)
     return { error: "Doctor with that email already exists" };
+
+  console.log(res.statusText, res.status);
 
   if (res.status > 400) {
     console.log("Server Error");

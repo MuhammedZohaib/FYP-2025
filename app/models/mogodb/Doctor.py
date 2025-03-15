@@ -8,7 +8,7 @@ from DatabaseConnector import db
 
 class Doctor:
     def __init__(self, name: str, email: str, password: str, location: str, phone: str, specialization: str,
-                 picture: str = "nothing there ", experience: str = "5 years", patients=None,
+                 picture: str = "nothing there", experience: str = "5 years", patients=None,
                  consultations=None):
         if patients is None:
             patients = []

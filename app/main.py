@@ -4,19 +4,27 @@ from fastapi import FastAPI, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from starlette.responses import JSONResponse
+import logging
 
-from endpoints import router as api_router
+
+# from endpoints import router as api_router
 from keys import ORIGINS
 from models.mogodb.Doctor import Doctor
 from models.mogodb.EEGDataRecord import EEGDataRecord
 from models.mogodb.Patient import Patient
 from pydantic_schemas.Email import EmailSchema
+from routes import router as api_router
 
 cloudinary.config(
     cloud_name="df07a9xfz",
     api_key="974667289268378",
     api_secret="uzJxAsnJ_XrqASbKPz438lN06XA"
 )
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
+
 
 app = FastAPI()
 app.add_middleware(

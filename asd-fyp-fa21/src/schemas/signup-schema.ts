@@ -6,17 +6,14 @@ export const signupSchema = z
     email: z
       .string()
       .nonempty("Email is required")
-      .regex(
-        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-        {
-            message: "Invalid Email"
-        },
-      ),
+      .regex(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
+        message: "Invalid Email",
+      }),
     password: z
       .string()
       .min(8, "Password must be 8 characters long!")
       .nonempty("Password is required"),
-    confirmPassword: z.string(),
+    confirmPassword: z.string().optional(),
     location: z.string().nonempty("Location is required"),
     specialization: z.string().nonempty("Specialization is required"),
     phone: z.string().nonempty("Phone Number is required"),

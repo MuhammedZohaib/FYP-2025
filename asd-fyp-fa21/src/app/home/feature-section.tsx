@@ -1,52 +1,32 @@
 "use client";
 
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
-import {
-  CloudLightningIcon as LightningBolt,
-  BarChart2,
-  Bot,
-  Shield,
-  FileText,
-} from "lucide-react";
 import Image from "next/image";
 
 export default function FeaturesSection() {
   return (
-    <div className="bg-black text-white p-6 min-h-screen">
-      <BentoGrid className="max-w-6xl mx-auto">
+    <div className="bg-black text-white py-20">
+      <BentoGrid className="max-w-7xl mx-auto px-6">
         <BentoGridItem
           className="md:col-span-7"
           title="One-Click Assessment"
           description="Quickly upload facial or audio samples, and let our AI do the rest. Get insights with just a single click."
           header={
-            <div className="grid grid-cols-3 gap-4 w-full">
-              <div className="flex bg-zinc-900 rounded-xl overflow-hidden aspect-square">
-                <Image
-                  src="/Vector.svg"
-                  alt="Lightning icon"
-                  width={150}
-                  height={150}
-                  className="m-auto"
-                />
-              </div>
-              <div className="flex align-items-center bg-zinc-900 rounded-xl overflow-hidden aspect-square">
-                <Image
-                  src="/Frame.svg"
-                  alt="Chart icon"
-                  width={150}
-                  height={150}
-                  className="m-auto"
-                />
-              </div>
-              <div className="bg-zinc-900 rounded-xl overflow-hidden aspect-square">
-                <Image
-                  src="/placeholder.svg?height=200&width=200"
-                  alt="Bot icon"
-                  width={200}
-                  height={200}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+            <div className="grid grid-cols-3 gap-4">
+              {["/Vector.svg", "/Frame.svg", "/bot.svg"].map((src, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-center bg-zinc-900 rounded-xl aspect-square p-8"
+                >
+                  <Image
+                    src={src || "/placeholder.svg"}
+                    alt={`Icon ${index + 1}`}
+                    width={120}
+                    height={120}
+                    className="flex align-items-center m-auto"
+                  />
+                </div>
+              ))}
             </div>
           }
         />
@@ -56,12 +36,11 @@ export default function FeaturesSection() {
           title="Real-Time Results"
           description="Receive fast and reliable predictions powered by advanced AI models. No waiting—actionable data in seconds."
           header={
-            <div className="relative w-full h-40 rounded-lg overflow-hidden">
+            <div className="relative aspect-[4/3] w-full rounded-lg overflow-hidden bg-zinc-900">
               <Image
-                src="/placeholder.svg?height=300&width=400"
+                src="/assest-1.svg"
                 alt="Dashboard screenshot"
-                width={400}
-                height={300}
+                fill
                 className="object-cover"
               />
             </div>
@@ -69,21 +48,19 @@ export default function FeaturesSection() {
         />
 
         <BentoGridItem
-          className="md:col-span-3"
+          className="grid place-items-center md:col-span-3"
           title="Secure Data Processing"
-          description="Your privacy is our priority. All data is encrypted and processed securely in the cloud."
+          description="Your privacy is our priority. We employ robust encryption protocols to ensure that your data remains confidential and secure during transmission and storage. By processing all data securely in the cloud, we safeguard your information against unauthorized access and potential breaches. "
           header={
-            <div className="relative w-full h-40 rounded-lg overflow-hidden">
+            <div className="relative aspect-[4/3] w-full rounded-lg overflow-hidden bg-zinc-900">
               <Image
-                src="/placeholder.svg?height=300&width=400"
+                src="/secure.svg"
                 alt="Security graph"
-                width={400}
-                height={300}
+                fill
                 className="object-cover"
               />
             </div>
           }
-          icon={<Shield className="h-4 w-4 text-zinc-400" />}
         />
 
         <BentoGridItem
@@ -91,17 +68,15 @@ export default function FeaturesSection() {
           title="Customizable Reports"
           description="Access clear and detailed reports tailored for parents, educators, or healthcare professionals to make informed decisions."
           header={
-            <div className="relative w-full h-40 rounded-lg overflow-hidden">
+            <div className="relative aspect-[2/1] w-full rounded-lg overflow-hidden bg-zinc-900">
               <Image
-                src=""
+                src="/image.jpg"
                 alt="Reports dashboard"
-                width={400}
-                height={300}
+                fill
                 className="object-cover"
               />
             </div>
           }
-          icon={<FileText className="h-4 w-4 text-zinc-400" />}
         />
       </BentoGrid>
     </div>
