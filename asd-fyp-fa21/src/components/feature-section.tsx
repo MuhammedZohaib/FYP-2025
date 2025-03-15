@@ -19,7 +19,7 @@ export default function FeaturesSection() {
                   className="flex items-center justify-center bg-zinc-900 rounded-xl aspect-square p-8"
                 >
                   <Image
-                    src={src || "/placeholder.svg"}
+                    src={src}
                     alt={`Icon ${index + 1}`}
                     width={120}
                     height={120}
@@ -73,6 +73,7 @@ export default function FeaturesSection() {
                 src="/image.jpg"
                 alt="Reports dashboard"
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
               />
             </div>

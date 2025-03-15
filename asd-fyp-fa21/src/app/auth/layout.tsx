@@ -2,11 +2,11 @@
 import { Inter } from "next/font/google";
 import type React from "react";
 
-import { AnimatedTestimonialsDemo } from "./testimonialDemo";
 import { usePathname } from "next/navigation";
 import NavbarAuth from "@/components/ui/navauth";
 import FooterAuth from "@/components/ui/footer-auth";
 import { BackgroundLines } from "@/components/ui/background-lines";
+import { AnimatedTestimonialsDemo } from "@/components/testimonialDemo";
 
 const inter = Inter();
 

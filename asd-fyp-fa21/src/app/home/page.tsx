@@ -2,10 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import FeaturesSection from "./feature-section";
 import { Navbar } from "@/components/ui/navbar";
 import { TestimonialsSection } from "@/components/testimonial-section";
 import { Footer } from "@/components/footer";
+import { BackgroundBeams } from "@/components/ui/background-beams";
+import FeaturesSection from "@/components/feature-section";
 
 export default function Home() {
   return (
@@ -16,9 +17,9 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
+      <section className="relative mt-20 py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-black/80 z-0"></div>
-        <div className="absolute inset-0 bg-[url('/placeholder.svg?height=800&width=1600')] bg-cover bg-center opacity-20 z-[-1]"></div>
+        <div className="absolute inset-0 bg-cover bg-center opacity-20 z-[-1]"></div>
         <div className="container mx-auto text-center relative z-10">
           <div className="max-w-3xl mx-auto mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -28,17 +29,19 @@ export default function Home() {
               With our state of the art scanning page, we are to back know
               testing services, you can check your website in seconds.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
               <Button className="bg-blue-600 hover:bg-blue-700">
                 Book Consultation
               </Button>
 
-              <Button
-                variant="outline"
-                className="border-gray-700 text-white hover:bg-gray-800"
-              >
-                <Link href={"/dashboard"}>Go to the Dashboard</Link>
-              </Button>
+              <Link href={"/dashboard"}>
+                <Button
+                  variant="outline"
+                  className="border-gray-700 text-white hover:bg-gray-800"
+                >
+                  Go to the Dashboard
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -53,6 +56,7 @@ export default function Home() {
             />
           </div>
         </div>
+        <BackgroundBeams />
       </section>
 
       {/* Features Section */}

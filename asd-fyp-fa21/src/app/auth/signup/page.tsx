@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import SignUpForm from "./signup-form";
+import SignUpForm from "../../../components/signup-form";
 import { FaGoogle } from "react-icons/fa";
 import Divider from "@/components/ui/divider";
 import Link from "next/link";
