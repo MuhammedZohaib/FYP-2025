@@ -1,118 +1,147 @@
 "use client";
-import { Eye, Table } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 import {
-  TableHeader,
-  TableRow,
-  TableHead,
+  Table,
   TableBody,
   TableCell,
-} from "./ui/table";
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "./ui/skeleton";
 
-const patients = [
-  {
-    id: "P0001",
-    date: "2024-12-16",
-    name: "Alex Johnson",
-    guardian: "Sarah Johnson",
-    gender: "Male",
-    status: "Diagnosed",
-    dob: "2018-04-10",
-  },
-  {
-    id: "P0002",
-    date: "2024-12-16",
-    name: "Emma Smith",
-    guardian: "John Smith",
-    gender: "Female",
-    status: "Not Diagnosed",
-    dob: "2017-07-22",
-  },
-  {
-    id: "P0003",
-    date: "2024-12-16",
-    name: "Liam Brown",
-    guardian: "Lisa Brown",
-    gender: "Male",
-    status: "Diagnosed",
-    dob: "2019-01-15",
-  },
-  {
-    id: "P0004",
-    date: "2024-12-16",
-    name: "Olivia Davis",
-    guardian: "Robert Davis",
-    gender: "Female",
-    status: "Not Diagnosed",
-    dob: "2016-09-05",
-  },
-  {
-    id: "P0005",
-    date: "2024-12-16",
-    name: "Noah Wilson",
-    guardian: "Maria Wilson",
-    gender: "Male",
-    status: "Diagnosed",
-    dob: "2020-02-28",
-  },
-  {
-    id: "P0006",
-    date: "2024-12-16",
-    name: "Ava Martinez",
-    guardian: "Carlos Martinez",
-    gender: "Female",
-    status: "Diagnosed",
-    dob: "2018-11-11",
-  },
-];
+interface Patient {
+  id: number;
+  name: string;
+  age: number;
+  gender: string;
+  diagnosis: string;
+  date: string;
+}
 
 export function PatientsTable() {
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>No.</TableHead>
-            <TableHead>Date/Time</TableHead>
-            <TableHead>Patient Name</TableHead>
-            <TableHead>Guardian</TableHead>
-            <TableHead>Gender</TableHead>
-            <TableHead>ASD Status</TableHead>
-            <TableHead>Date of Birth</TableHead>
-            <TableHead className="w-[80px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {patients.map((patient) => (
-            <TableRow key={patient.id}>
-              <TableCell className="font-medium">{patient.id}</TableCell>
-              <TableCell>{patient.date}</TableCell>
-              <TableCell>{patient.name}</TableCell>
-              <TableCell>{patient.guardian}</TableCell>
-              <TableCell>{patient.gender}</TableCell>
-              <TableCell>
-                <div
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    patient.status === "Diagnosed"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                  }`}
-                >
-                  {patient.status}
-                </div>
-              </TableCell>
-              <TableCell>{patient.dob}</TableCell>
-              <TableCell>
-                <Button variant="ghost" size="icon">
-                  <Eye className="h-4 w-4" />
-                  <span className="sr-only">View patient</span>
-                </Button>
-              </TableCell>
-            </TableRow>
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPatients() {
+      try {
+        // You would typically have a separate endpoint for patients data
+        // For now, we'll create sample data based on the current date
+        const samplePatients: Patient[] = [
+          {
+            id: 1,
+            name: "John Doe",
+            age: 7,
+            gender: "Male",
+            diagnosis: "ASD",
+            date: new Date().toISOString().split("T")[0],
+          },
+          {
+            id: 2,
+            name: "Jane Smith",
+            age: 5,
+            gender: "Female",
+            diagnosis: "Non-ASD",
+            date: new Date().toISOString().split("T")[0],
+          },
+          {
+            id: 3,
+            name: "Michael Johnson",
+            age: 8,
+            gender: "Male",
+            diagnosis: "ASD",
+            date: new Date().toISOString().split("T")[0],
+          },
+          {
+            id: 4,
+            name: "Emily Williams",
+            age: 6,
+            gender: "Female",
+            diagnosis: "Non-ASD",
+            date: new Date().toISOString().split("T")[0],
+          },
+          {
+            id: 5,
+            name: "Robert Brown",
+            age: 9,
+            gender: "Male",
+            diagnosis: "ASD",
+            date: new Date().toISOString().split("T")[0],
+          },
+        ];
+
+        setPatients(samplePatients);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching patients:", error);
+        setLoading(false);
+      }
+    }
+
+    fetchPatients();
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex items-center space-x-4 py-4">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[250px]" />
+            <Skeleton className="h-4 w-[200px]" />
+          </div>
+        </div>
+        {Array(4)
+          .fill(0)
+          .map((_, i) => (
+            <div key={i} className="flex items-center space-x-4 py-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[250px]" />
+                <Skeleton className="h-4 w-[200px]" />
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
-    </div>
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>ID</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead>Age</TableHead>
+          <TableHead>Gender</TableHead>
+          <TableHead>Diagnosis</TableHead>
+          <TableHead>Date</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {patients.map((patient) => (
+          <TableRow key={patient.id}>
+            <TableCell>{patient.id}</TableCell>
+            <TableCell>{patient.name}</TableCell>
+            <TableCell>{patient.age}</TableCell>
+            <TableCell>{patient.gender}</TableCell>
+            <TableCell>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  patient.diagnosis === "ASD"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-green-100 text-green-800"
+                }`}
+              >
+                {patient.diagnosis}
+              </span>
+            </TableCell>
+            <TableCell>{patient.date}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

@@ -19,9 +19,7 @@ export default function RootLayout({
           <SidebarInset>
             <div className="flex h-16 items-center border-b px-4">
               <SidebarTrigger className="mr-4" />
-              <h1 className="text-lg font-semibold">
-                IR EEG Hospital Dashboard
-              </h1>
+              <h1 className="text-lg font-semibold">Dashboard</h1>
             </div>
             <main className="flex-1">{children}</main>
           </SidebarInset>

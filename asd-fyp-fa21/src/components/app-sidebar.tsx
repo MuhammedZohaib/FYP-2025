@@ -47,15 +47,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-4 py-2">
-          <div className="h-8 w-8 rounded bg-primary"></div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">IR EEG</span>
-            <span className="text-xs text-muted-foreground">Hospital</span>
-          </div>
-        </div>
-      </SidebarHeader>
+      <SidebarHeader></SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
