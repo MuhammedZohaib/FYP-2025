@@ -17,3 +17,4 @@ opencv-python
 fastapi-mail
 starlette
 librosa
+bcrypt

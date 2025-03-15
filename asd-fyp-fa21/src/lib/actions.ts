@@ -3,7 +3,7 @@
 import { loginSchema } from "@/schemas/login-schema";
 import { z } from "zod";
 import { User } from "../types/user";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { signupSchema } from "@/schemas/signup-schema";
 
 const endpoint = "http://localhost:8000/api";
@@ -26,23 +26,21 @@ export async function login(data: z.infer<typeof loginSchema>) {
 
   const res = await fetch(`${endpoint}/doctor/login`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
+    headers: { "content-type": "application/json" },
     credentials: "include",
     body: JSON.stringify(result.data),
   });
 
-  console.log(res);
-
-  const json: LoginResponseSuccess | LoginResponseError = await res.json();
+  const json = await res.json();
+  console.log("Login Response:", json);
 
   if (!("doctor" in json)) return { error: "Invalid Credentials" };
 
   if (typeof window !== "undefined") {
+    console.log("Storing token:", json.token);
     localStorage.setItem("access_token", json.token);
   } else {
-    console.warn("Local storage is not available in this environment.");
+    console.warn("Local storage is not available.");
   }
 
   redirect("/dashboard");

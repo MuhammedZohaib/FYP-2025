@@ -3,6 +3,7 @@ from jose import JWTError
 from datetime import datetime, timedelta
 from keys import SECRET_KEY, TOKEN_EXPIRE_MINUTES
 from pydantic_schemas.Doctor import DoctorSchema
+import bcrypt
 
 
 def create_access_token(data: dict):
@@ -15,19 +16,20 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-def authenticate_doctor(password: str, doctor: DoctorSchema):
-    if not doctor:
-        return False
-    if not password == doctor["password"]:
-        return False
-    return doctor
+def authenticate_doctor(plain_password: str, doctor: dict):
+    stored_password = doctor.get('password')
+    if not stored_password:
+        return None
+    if bcrypt.checkpw(plain_password.encode('utf-8'), stored_password.encode('utf-8')):
+        print('authenticated')
+        return doctor
+    return None
+
 
 
 def verify_token(token: str):
     try:
-
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-
         email: str = payload.get("email")
         user_id: str = payload.get("id")
         if email is None:
