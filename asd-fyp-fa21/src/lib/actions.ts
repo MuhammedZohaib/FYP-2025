@@ -1,8 +1,7 @@
-"use server";
+"use client";
 
 import { loginSchema } from "@/schemas/login-schema";
 import { z } from "zod";
-import { cookies } from "next/headers";
 import { User } from "../types/user";
 import { redirect } from "next/navigation";
 import { signupSchema } from "@/schemas/signup-schema";
@@ -40,11 +39,11 @@ export async function login(data: z.infer<typeof loginSchema>) {
 
   if (!("doctor" in json)) return { error: "Invalid Credentials" };
 
-  const _cookies = await cookies();
-  _cookies.set("access_token", json.token, {
-    httpOnly: true,
-    expires: new Date(Date.now() + 1000 * 60 * 60 * 24),
-  });
+  if (typeof window !== "undefined") {
+    localStorage.setItem("access_token", json.token);
+  } else {
+    console.warn("Local storage is not available in this environment.");
+  }
 
   redirect("/dashboard");
 }
