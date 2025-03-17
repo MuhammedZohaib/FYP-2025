@@ -5,6 +5,10 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import {Inter} from "next/font/google";
+import { Toaster } from "sonner";
+
+const inter = Inter();
 
 export default function RootLayout({
   children,
@@ -12,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="min-h-screen bg-background">
+    <html lang="en" className="dark" >
+      <body className={`min-h-screen bg-background ${inter.className}`}>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -24,6 +28,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
           </SidebarInset>
         </SidebarProvider>
+        <Toaster/>
       </body>
     </html>
   );

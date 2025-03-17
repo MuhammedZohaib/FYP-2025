@@ -2,9 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsChart } from "@/components/stats-chart";
 import { WeeklyChart } from "@/components/weekly-chart";
 import { PatientsTable } from "@/components/patients-table";
-import { Suspense } from "react";
 
 async function getDashboardData() {
+  // artifical delay to test the loading state 
+  // await new Promise((res) => setTimeout(res, 3000));
+
   try {
     const res = await fetch("http://localhost:8000/api/dashboard/data", {
       cache: "no-store",
@@ -32,7 +34,6 @@ export default async function DashboardPage() {
   const totalPredictions = data.eeg_records + data.facial_records;
 
   return (
-    <Suspense>
       <div className="flex flex-col gap-6 p-6">
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
@@ -111,6 +112,5 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </Suspense>
   );
 }

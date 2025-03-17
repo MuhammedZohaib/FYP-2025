@@ -3,7 +3,7 @@
 import { loginSchema } from "@/schemas/login-schema";
 import { z } from "zod";
 import { User } from "../types/user";
-import { redirect, useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { signupSchema } from "@/schemas/signup-schema";
 
 const endpoint = "http://localhost:8000/api";
