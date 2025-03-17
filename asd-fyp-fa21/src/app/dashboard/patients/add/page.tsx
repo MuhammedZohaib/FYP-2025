@@ -2,7 +2,7 @@
 
 import { Home, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import AddPatientForm from "./add-patient-form";
+import AddPatientForm from "../../../../components/add-patient-form";
 
 export default function AddPatient() {
   return (
