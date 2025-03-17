@@ -10,6 +10,7 @@ import DynamicForm from "@/components/ui/dynamic-form";
 import Link from "next/link";
 import { FaArrowRight } from "react-icons/fa";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -21,6 +22,7 @@ export default function LoginForm() {
   });
 
   const [err, setErr] = useState<{ error: string } | null>(null);
+  const router = useRouter();
 
   const fields: Field[] = [
     { name: "email", label: "Email", type: "text" },
@@ -40,8 +42,14 @@ export default function LoginForm() {
   ];
 
   async function submitHandler(formData: z.infer<typeof loginSchema>) {
-    const error = await login(formData);
-    setErr(error);
+    const res = await login(formData);
+
+    if(res.error){
+      setErr(res)
+    }else if(res.token){
+      localStorage.setItem("access_token", res.token)
+      router.push("/dashboard")
+    }
   }
 
   return (

@@ -1,10 +1,11 @@
-"use client";
+"use server";
 
 import { loginSchema } from "@/schemas/login-schema";
 import { z } from "zod";
 import { User } from "../types/user";
 import { redirect } from "next/navigation";
 import { signupSchema } from "@/schemas/signup-schema";
+import { cookies } from "next/headers";
 
 const endpoint = "http://localhost:8000/api";
 
@@ -24,6 +25,8 @@ export async function login(data: z.infer<typeof loginSchema>) {
   const result = loginSchema.safeParse(data);
   if (!result.success) return { error: "Invalid Credentials" };
 
+  const _cookies = await cookies();
+
   const res = await fetch(`${endpoint}/doctor/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -36,14 +39,15 @@ export async function login(data: z.infer<typeof loginSchema>) {
 
   if (!("doctor" in json)) return { error: "Invalid Credentials" };
 
-  if (typeof window !== "undefined") {
-    console.log("Storing token:", json.token);
-    localStorage.setItem("access_token", json.token);
-  } else {
-    console.warn("Local storage is not available.");
-  }
+  _cookies.set({
+    name: "access_token",
+    value: json.token,
+    httpOnly: true,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
 
-  redirect("/dashboard");
+  return { token: json.token };
 }
 
 export async function signup(data: z.infer<typeof signupSchema>) {
@@ -72,4 +76,23 @@ export async function signup(data: z.infer<typeof signupSchema>) {
   }
 
   redirect("/auth/login");
+}
+
+export async function validateToken() {
+  const _cookies = await cookies();
+  const access_token = _cookies.get("access_token");
+
+  if(!access_token) return false;
+
+  const res = await fetch(`${endpoint}/doctor/check-token`, {
+    method: "GET",
+    headers: {
+      access_token: access_token?.value || "",
+    },
+  });
+
+  const json = await res.json();
+
+  if (json.success) return true;
+  return false;
 }
