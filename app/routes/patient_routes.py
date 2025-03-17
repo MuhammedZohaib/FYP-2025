@@ -111,7 +111,6 @@ def update_patient(patient_id: str, update_data: PatientSchema):
 
 @router.get('/{patient_id}/predictions', status_code=status.HTTP_200_OK)
 def get_predictions(patient_id: str, request: Request):
-    # Verify token and get the user information
     token = request.headers.get("access_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
