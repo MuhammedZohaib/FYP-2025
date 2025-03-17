@@ -14,10 +14,6 @@ export default function AddPatient() {
             <Home size={16} />
           </Link>
           <ChevronRight size={14} />
-          <Link href="/patients" className="hover:text-white">
-            Patients
-          </Link>
-          <ChevronRight size={14} />
           <span className="text-white">Add a patient</span>
         </div>
 

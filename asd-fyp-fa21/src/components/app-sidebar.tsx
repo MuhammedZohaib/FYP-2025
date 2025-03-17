@@ -92,7 +92,6 @@ export function AppSidebar() {
       }
     };
 
-    // Call the fetchUserData function
     fetchUserData();
   }, []);
 
@@ -141,12 +140,16 @@ export function AppSidebar() {
                     <SidebarMenuSub>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild>
-                          <Link href="/dashboard/patients/add">Add Patient</Link>
+                          <Link href="/dashboard/patients/add">
+                            Add Patient
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild>
-                          <Link href="/patients">Patient List</Link>
+                          <Link href="/dashboard/patients/list">
+                            Patient List
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>

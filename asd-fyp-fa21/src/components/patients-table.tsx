@@ -12,7 +12,7 @@ import {
 import { Skeleton } from "./ui/skeleton";
 
 interface Patient {
-  _id: { $oid: string };
+  _id: string;
   name: string;
   email: string;
   phone: string;
@@ -56,6 +56,8 @@ export function PatientsTable() {
         }
 
         const data = await response.json();
+        // Assuming the API returns the patients array in order of recency,
+        // we store it and later only display the first 5 entries.
         setPatients(data.patients);
         setLoading(false);
       } catch (error) {
@@ -118,8 +120,8 @@ export function PatientsTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {patients.map((patient) => (
-          <TableRow key={patient._id.$oid}>
+        {patients.slice(0, 5).map((patient) => (
+          <TableRow key={patient._id}>
             <TableCell>{patient.name}</TableCell>
             <TableCell>{calculateAge(patient.dob)}</TableCell>
             <TableCell>{patient.gender}</TableCell>
