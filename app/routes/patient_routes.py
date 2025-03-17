@@ -67,9 +67,11 @@ def get_patients(request: Request):
 
     doctor = Doctor.find_by_id(doctor_id)
     if not doctor:
+        print("Doctor Not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
 
     patient_array = doctor["patients"]
+    print(patient_array)
 
     doctors_patients = Patient.get_all_by_ids(patient_array)
     patients = []

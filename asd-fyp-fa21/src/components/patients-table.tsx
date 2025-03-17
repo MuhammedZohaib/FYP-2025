@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  Table,
+  Table as DataTable,
   TableBody,
   TableCell,
   TableHead,
@@ -12,12 +12,25 @@ import {
 import { Skeleton } from "./ui/skeleton";
 
 interface Patient {
-  id: number;
+  _id: { $oid: string };
   name: string;
-  age: number;
-  gender: string;
-  diagnosis: string;
-  date: string;
+  email: string;
+  phone: string;
+  address: string;
+  asd: boolean;
+  mother_name: string;
+  mother_cnic: string;
+  father_name: string;
+  father_cnic: string;
+  dob: string;
+  gender: "male" | "female";
+  born_country: string;
+  born_city: string;
+  other_info?: string;
+  facial_data_records: any[];
+  doctor: { _id: string; name: string };
+  eeg_data_records: any[];
+  speech_data_records: any[];
 }
 
 export function PatientsTable() {
@@ -27,52 +40,23 @@ export function PatientsTable() {
   useEffect(() => {
     async function fetchPatients() {
       try {
-        // You would typically have a separate endpoint for patients data
-        // For now, we'll create sample data based on the current date
-        const samplePatients: Patient[] = [
-          {
-            id: 1,
-            name: "John Doe",
-            age: 7,
-            gender: "Male",
-            diagnosis: "ASD",
-            date: new Date().toISOString().split("T")[0],
-          },
-          {
-            id: 2,
-            name: "Jane Smith",
-            age: 5,
-            gender: "Female",
-            diagnosis: "Non-ASD",
-            date: new Date().toISOString().split("T")[0],
-          },
-          {
-            id: 3,
-            name: "Michael Johnson",
-            age: 8,
-            gender: "Male",
-            diagnosis: "ASD",
-            date: new Date().toISOString().split("T")[0],
-          },
-          {
-            id: 4,
-            name: "Emily Williams",
-            age: 6,
-            gender: "Female",
-            diagnosis: "Non-ASD",
-            date: new Date().toISOString().split("T")[0],
-          },
-          {
-            id: 5,
-            name: "Robert Brown",
-            age: 9,
-            gender: "Male",
-            diagnosis: "ASD",
-            date: new Date().toISOString().split("T")[0],
-          },
-        ];
+        const accessToken = localStorage.getItem("access_token");
 
-        setPatients(samplePatients);
+        const response = await fetch("http://localhost:8000/api/patient/all", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: accessToken || "",
+          },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch patients: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        setPatients(data.patients);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching patients:", error);
@@ -82,6 +66,20 @@ export function PatientsTable() {
 
     fetchPatients();
   }, []);
+
+  function calculateAge(dob: string): number {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+    return age;
+  }
 
   if (loading) {
     return (
@@ -109,39 +107,27 @@ export function PatientsTable() {
   }
 
   return (
-    <Table>
+    <DataTable>
       <TableHeader>
         <TableRow>
-          <TableHead>ID</TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Age</TableHead>
           <TableHead>Gender</TableHead>
-          <TableHead>Diagnosis</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead>Phone</TableHead>
+          <TableHead>ASD Status</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {patients.map((patient) => (
-          <TableRow key={patient.id}>
-            <TableCell>{patient.id}</TableCell>
+          <TableRow key={patient._id.$oid}>
             <TableCell>{patient.name}</TableCell>
-            <TableCell>{patient.age}</TableCell>
+            <TableCell>{calculateAge(patient.dob)}</TableCell>
             <TableCell>{patient.gender}</TableCell>
-            <TableCell>
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  patient.diagnosis === "ASD"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-green-100 text-green-800"
-                }`}
-              >
-                {patient.diagnosis}
-              </span>
-            </TableCell>
-            <TableCell>{patient.date}</TableCell>
+            <TableCell>{patient.phone}</TableCell>
+            <TableCell>{patient.asd ? "ASD" : "Non-ASD"}</TableCell>
           </TableRow>
         ))}
       </TableBody>
-    </Table>
+    </DataTable>
   );
 }
