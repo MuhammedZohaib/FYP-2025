@@ -43,6 +43,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
+import { logout } from "@/lib/actions";
 
 export function AppSidebar() {
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({
@@ -56,13 +57,6 @@ export function AppSidebar() {
       ...prev,
       [key]: !prev[key],
     }));
-  };
-
-  const handleLogout = async () => {
-    localStorage.removeItem("access_token");
-    window.location.href = "/auth/login";
-    document.cookie =
-      "access_token=; Expires/Max-Age=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
   };
 
   const [userName, setUserName] = useState("");
@@ -259,7 +253,7 @@ export function AppSidebar() {
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-6 w-6" />
                 Logout
               </DropdownMenuItem>

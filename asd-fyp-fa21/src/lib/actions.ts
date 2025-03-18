@@ -82,7 +82,7 @@ export async function validateToken() {
   const _cookies = await cookies();
   const access_token = _cookies.get("access_token");
 
-  if(!access_token) return false;
+  if (!access_token) return false;
 
   const res = await fetch(`${endpoint}/doctor/check-token`, {
     method: "GET",
@@ -95,4 +95,16 @@ export async function validateToken() {
 
   if (json.success) return true;
   return false;
+}
+
+export async function logout() {
+  const _cookies = await cookies();
+
+  _cookies.set({
+    name: "access_token",
+    value: "",
+    maxAge: 0,
+  });
+
+  redirect("/auth/login");
 }
