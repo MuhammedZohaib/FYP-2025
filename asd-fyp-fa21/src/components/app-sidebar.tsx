@@ -246,14 +246,14 @@ export function AppSidebar() {
                 <MoreVertical className="h-6 w-6" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent align="end" className="w-48 bg-[#1a1a1a] border-gray-800">
+              <DropdownMenuItem asChild className="text-white focus:bg-[#252525]">
                 <Link href="/profile" className="flex items-center">
                   <User className="mr-2 h-6 w-6" />
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onClick={logout} className="text-white focus:bg-[#252525]">
                 <LogOut className="mr-2 h-6 w-6" />
                 Logout
               </DropdownMenuItem>
