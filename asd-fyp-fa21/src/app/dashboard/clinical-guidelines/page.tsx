@@ -11,7 +11,7 @@ import Link from "next/link";
 
 export default function ClinicalGuidelinesPage() {
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-6">
+    <div className="min-h-screen bg-background text-white p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -374,7 +374,7 @@ function GuidelineSection({
       {/* Time indicator with dot */}
       <div className="w-11 flex-shrink-0 pt-1 text-gray-500 text-sm relative">
         {time}
-        <div className="absolute left-7 top-2 w-3 h-3 bg-gray-700 rounded-full transform -translate-x-1/2 z-20 flex items-center justify-center">
+        <div className="absolute left-[-10] top-2 w-3 h-3 bg-gray-700 rounded-full transform -translate-x-1/2 z-20 flex items-center justify-center">
           <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
         </div>
       </div>

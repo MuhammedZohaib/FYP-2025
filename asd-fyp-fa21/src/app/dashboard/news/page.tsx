@@ -2,7 +2,7 @@ import HealthNewsFeed from "@/components/health-news-feed";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-white">
       <div className="p-4 md:p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
