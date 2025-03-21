@@ -24,7 +24,7 @@ export default function RootLayout({
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <div className="flex h-16 items-center border-b px-4">
+            <div className="flex h-[5.3rem] items-center border-b px-4">
               <SidebarTrigger className="mr-4" />
               <h1 className="text-lg font-semibold">Dashboard</h1>
             </div>

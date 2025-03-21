@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Newspaper,
   BarChart3,
   ChevronRight,
   FileText,
@@ -113,6 +114,14 @@ export function AppSidebar() {
                   <Link href="/dashboard">
                     <BarChart3 className="h-4 w-4" />
                     <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/news">
+                    <Newspaper className="h-4 w-4" />
+                    <span>Pulse Insight</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -246,14 +255,23 @@ export function AppSidebar() {
                 <MoreVertical className="h-6 w-6" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-[#1a1a1a] border-gray-800">
-              <DropdownMenuItem asChild className="text-white focus:bg-[#252525]">
+            <DropdownMenuContent
+              align="end"
+              className="w-48 bg-[#1a1a1a] border-gray-800"
+            >
+              <DropdownMenuItem
+                asChild
+                className="text-white focus:bg-[#252525]"
+              >
                 <Link href="/profile" className="flex items-center">
                   <User className="mr-2 h-6 w-6" />
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={logout} className="text-white focus:bg-[#252525]">
+              <DropdownMenuItem
+                onClick={logout}
+                className="text-white focus:bg-[#252525]"
+              >
                 <LogOut className="mr-2 h-6 w-6" />
                 Logout
               </DropdownMenuItem>
