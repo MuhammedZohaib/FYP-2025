@@ -82,6 +82,13 @@ async def latest_news():
         mnt_articles = scrape_medicalnewstoday()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error scraping data: {e}")
+
     combined_articles = healthline_articles + mnt_articles
     combined_articles.sort(key=lambda x: x['date_obj'] or datetime.min, reverse=True)
+
+    # Convert 'date_obj' to an ISO formatted string
+    for article in combined_articles:
+        article.pop('date_obj')
     return JSONResponse(content={"articles": combined_articles})
+
+
