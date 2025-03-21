@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "backend": "cd ../app && sudo docker compose up --build",
     "start-win": "start npm run dev & cd ../app && start docker-compose up",
+    "build-win": "start npm run dev & cd ../app && start docker-compose up --build",
     "launch": "npm run backend & npm run dev",
     "build": "next build",
     "start": "next start",
