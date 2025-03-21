@@ -18,3 +18,6 @@ fastapi-mail
 starlette
 librosa
 bcrypt
+python-dateutil
+beautifulsoup4==4.12.3
+requests==2.32.3
