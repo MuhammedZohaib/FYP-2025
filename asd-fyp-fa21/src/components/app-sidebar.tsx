@@ -93,7 +93,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-spacegray-400">
+      <SidebarHeader className="grid items-center h-[5.3rem] border-b border-spacegray-400">
         <div className="p-1 mt-1">
           <div className="hidden group-data-[collapsible=icon]:block">
             <User className="h-6 w-6" />
@@ -113,7 +113,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard">
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="h-6 w-6" />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
@@ -122,7 +122,7 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard/news">
-                    <Newspaper className="h-4 w-4" />
+                    <Newspaper className="h-6 w-6" />
                     <span>Pulse Insight</span>
                   </Link>
                 </SidebarMenuButton>
@@ -136,9 +136,9 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
-                      <Building2 className="h-4 w-4" />
+                      <Building2 className="h-6 w-6" />
                       <span>Resources</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -168,9 +168,9 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
-                      <Users className="h-4 w-4" />
+                      <Users className="h-6 w-6" />
                       <span>Patients</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -209,9 +209,9 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton>
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-6 w-6" />
                       <span>Reports</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -243,7 +243,7 @@ export function AppSidebar() {
                     <SidebarMenuButton>
                       <Settings className="h-6 w-6" />
                       <span>Settings</span>
-                      <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
