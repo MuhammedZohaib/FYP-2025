@@ -73,8 +73,6 @@
   background-repeat: no-repeat;
 }
 
-/* globals.css (or similar) */
-
 @keyframes marqueeLeftToRight {
   0% {
     transform: translateX(-50%);
@@ -85,6 +83,5 @@
 }
 
 .animate-marqueeLeftToRight {
-  /* Adjust duration (20s) to control speed */
   animation: marqueeLeftToRight 20s linear infinite;
 }
