@@ -1,4 +1,4 @@
-from app.models.mogodb import EEGDataRecord, FacialDataRecord
+from app.models.mongodb import EEGDataRecord, FacialDataRecord
 from fastapi import APIRouter, status
 
 

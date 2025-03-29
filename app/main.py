@@ -9,9 +9,9 @@ import logging
 
 # from endpoints import router as api_router
 from keys import ORIGINS
-from models.mogodb.Doctor import Doctor
-from models.mogodb.EEGDataRecord import EEGDataRecord
-from models.mogodb.Patient import Patient
+from models.mongodb.Doctor import Doctor
+from models.mongodb.EEGDataRecord import EEGDataRecord
+from models.mongodb.Patient import Patient
 from pydantic_schemas.Email import EmailSchema
 from routes import router as api_router
 

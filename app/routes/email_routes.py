@@ -4,9 +4,9 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 
 import logging
 
-from models.mogodb.Doctor import Doctor
-from models.mogodb.EEGDataRecord import EEGDataRecord
-from models.mogodb.Patient import Patient
+from models.mongodb.Doctor import Doctor
+from models.mongodb.EEGDataRecord import EEGDataRecord
+from models.mongodb.Patient import Patient
 from pydantic_schemas.Email import EmailSchema
 
 router = APIRouter(prefix="/email", tags=["email"])

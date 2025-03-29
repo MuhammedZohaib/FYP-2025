@@ -12,10 +12,10 @@ from jose import jwt
 
 from auth import verify_token
 from keys import SECRET_KEY
-from models.mogodb.EEGDataRecord import EEGDataRecord
-from models.mogodb.FacialDataRecord import FacialDataRecord
-from models.mogodb.Patient import Patient
-from models.mogodb.SpeechDataRecord import SpeechRecord
+from models.mongodb.EEGDataRecord import EEGDataRecord
+from models.mongodb.FacialDataRecord import FacialDataRecord
+from models.mongodb.Patient import Patient
+from models.mongodb.SpeechDataRecord import SpeechRecord
 from pydantic_schemas.FacialDataRecord import FacialDataRecordSchema
 from pydantic_schemas.SpeechDataRecord import SpeechDataRecordSchema
 from utils import inference_yolo, inference_efficientnet, extract_mfcc_features

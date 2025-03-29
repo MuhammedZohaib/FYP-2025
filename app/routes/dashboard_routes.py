@@ -1,9 +1,9 @@
 from fastapi import APIRouter, status
 import logging
 
-from models.mogodb.EEGDataRecord import EEGDataRecord
-from models.mogodb.FacialDataRecord import FacialDataRecord
-from models.mogodb.Patient import Patient
+from models.mongodb.EEGDataRecord import EEGDataRecord
+from models.mongodb.FacialDataRecord import FacialDataRecord
+from models.mongodb.Patient import Patient
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

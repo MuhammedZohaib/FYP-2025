@@ -11,8 +11,8 @@ from jose import jwt
 
 from auth import authenticate_doctor, create_access_token, verify_token
 from keys import SECRET_KEY
-from models.mogodb.Doctor import Doctor
-from models.mogodb.Patient import Patient
+from models.mongodb.Doctor import Doctor
+from models.mongodb.Patient import Patient
 from pydantic_schemas.AddConsultationRequest import AddConsultationRequestSchema
 from pydantic_schemas.Doctor import DoctorSchema
 from pydantic_schemas.LoginDoctor import LoginDoctorSchema
