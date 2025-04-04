@@ -1,12 +1,11 @@
 import random
 import time
-from socket import timeout
 from fastapi import APIRouter, HTTPException
 from semanticscholar import SemanticScholar
 
 router = APIRouter()
 
-sch = SemanticScholar(timeout=10)
+sch = SemanticScholar()
 
 # Predefined ASD-related search queries
 asd_queries = [
@@ -20,21 +19,17 @@ asd_queries = [
 @router.get("/latest-research")
 async def get_latest_research():
     try:
-        # Introduce a random delay (1 to 5 seconds)
         time.sleep(random.randint(1, 5))
-        
-        # Choose a random ASD-related search query
         query = random.choice(asd_queries)
-
-        # Fetch research papers
         papers = sch.search_paper(
             query,
-            limit=1,
+            limit=100,
             year=2025,
-            open_access_pdf=True
+            open_access_pdf=True,
         )
         
         results = []
+        count = 0
         for paper in papers:
             results.append({
                 "title": getattr(paper, "title", ""),
@@ -45,6 +40,9 @@ async def get_latest_research():
                 "url": getattr(paper, "url", ""),
                 "pdf_url": getattr(paper, "openAccessPdf", {}).get("url", "None")
             })
+            count += 1
+            if count >= 10:
+                break
         
         return {"query_used": query, "papers": results}
     except Exception as e:

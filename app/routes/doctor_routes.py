@@ -91,8 +91,6 @@ def get_doctor_profile(request: Request):
     doctor = Doctor.find_by_id(doctor_id)  # Replace with your actual lookup logic
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
-    
-    # Prepare and return the doctor profile
     doctor_dict = {**doctor, "_id": str(doctor["_id"])}
     return doctor_dict
 
