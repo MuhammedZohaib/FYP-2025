@@ -55,6 +55,9 @@ function safeParseDateString(dateString: string): Date {
   }
 }
 
+const CACHE_KEY = "healthNewsCache";
+const CACHE_DURATION = 20 * 60 * 60 * 1000; // 20 hours in milliseconds
+
 export default function HealthNewsFeed() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [newsWithTimestamps, setNewsWithTimestamps] = useState<
@@ -62,17 +65,27 @@ export default function HealthNewsFeed() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Default selected date is today
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-
-  // Memoize today's date so it doesn't change on each render
   const today = useMemo(() => new Date(), []);
 
-  // Fetch news data from the API (assumed to return all news)
   useEffect(() => {
     async function fetchNews() {
       setLoading(true);
       try {
+        // Check local storage for cached news
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsedCache = JSON.parse(cached);
+          const cacheTime = parsedCache.timestamp;
+          // If cache is still valid, use it
+          if (new Date().getTime() - cacheTime < CACHE_DURATION) {
+            setNewsItems(parsedCache.data);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // If no valid cache, fetch from the API
         const response = await fetch("http://localhost:8000/api/latest-news", {
           cache: "no-store",
         });
@@ -92,6 +105,14 @@ export default function HealthNewsFeed() {
           newsArray = Array.isArray(data) ? data : [data];
         }
 
+        // Store the fetched news in local storage with the current timestamp
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({
+            data: newsArray,
+            timestamp: new Date().getTime(),
+          })
+        );
         setNewsItems(newsArray);
       } catch (error) {
         console.error("Error fetching health news:", error);
@@ -103,25 +124,20 @@ export default function HealthNewsFeed() {
     fetchNews();
   }, []);
 
-  // Generate timestamps with a deterministic day offset based on the item's index
   useEffect(() => {
     if (newsItems.length > 0) {
       const itemsWithTimestamps: NewsWithTimestamp[] = newsItems.map(
         (item, index) => {
           let itemDate = safeParseDateString(item.date);
-          // Cycle offset: 0, 1, 2 (0 means news for today)
           const offset = index % 3;
           const adjustedDate = subDays(itemDate, offset);
           const timestamp = generateRandomTime(adjustedDate);
           return { ...item, timestamp };
         }
       );
-
-      // Sort items by timestamp (newest first)
       itemsWithTimestamps.sort(
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
-
       setNewsWithTimestamps(itemsWithTimestamps);
     }
   }, [newsItems]);
@@ -301,8 +317,6 @@ function NewsCard({ newsItem }: { newsItem: NewsItem & { timestamp: Date } }) {
           </div>
         </div>
       </div>
-
-      {/* Engagement metrics */}
     </div>
   );
 }
