@@ -297,7 +297,10 @@ export function AppSidebar() {
                 asChild
                 className="text-white focus:bg-[#252525]"
               >
-                <Link href="/profile" className="flex items-center">
+                <Link
+                  href="/dashboard/doctor-profile"
+                  className="flex items-center"
+                >
                   <User className="mr-2 h-6 w-6" />
                   Profile
                 </Link>
