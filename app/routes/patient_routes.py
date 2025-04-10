@@ -1,5 +1,3 @@
-import json
-from datetime import datetime
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Request
@@ -118,7 +116,7 @@ def get_predictions(patient_id: str, request: Request):
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     result = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    doctor_id = result.get("patient_id")
+    doctor_id = result.get("id")
 
     # Check if the doctor exists
     doctor = Doctor.find_by_id(doctor_id)
@@ -138,6 +136,9 @@ def get_predictions(patient_id: str, request: Request):
             "prediction_result": record["prediction"]  # Example: 0 or 1
         } for record in eeg_records
     ]
+
+    if eeg_records is None:
+        eeg_records = []
 
     # Get facial model predictions for the patient
     facial_records = FacialDataRecord.find_by_patient_id(patient_id)
