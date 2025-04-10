@@ -129,39 +129,37 @@ def get_predictions(patient_id: str, request: Request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
     # Get EEG model predictions for the patient
-    eeg_records = EEGDataRecord.find_by_id(patient_id)
-    eeg_predictions = [
-        {
-            "id": str(record["_id"]),
-            "prediction_result": record["prediction"]  # Example: 0 or 1
-        } for record in eeg_records
-    ]
-
-    if eeg_records is None:
-        eeg_records = []
-
-    # Get facial model predictions for the patient
-    facial_records = FacialDataRecord.find_by_patient_id(patient_id)
-    facial_predictions = [
-        {
-            "id": str(record["_id"]),
-            "prediction": record["prediction"]  # Example: positive/negative
-        } for record in facial_records
-    ]
-
-    speech_records = SpeechRecord.find_by_patient_id(patient_id)
-    speech_predictions = [
-        {
-            "id": str(record["_id"]),
-            "prediction": record["prediction"]
-        } for record in speech_records
-    ]
+    eeg_records = EEGDataRecord.find_by_patient_id(patient_id)
+    print(patient_id)
+    # eeg_predictions = [
+    #     {
+    #         "id": str(record["_id"]),
+    #         "prediction_result": record["prediction"]  # Example: 0 or 1
+    #     } for record in eeg_records
+    # ]
+    #
+    # # Get facial model predictions for the patient
+    # facial_records = FacialDataRecord.find_by_patient_id(patient_id)
+    # facial_predictions = [
+    #     {
+    #         "id": str(record["_id"]),
+    #         "prediction": record["prediction"]  # Example: positive/negative
+    #     } for record in facial_records
+    # ]
+    #
+    # speech_records = SpeechRecord.find_by_patient_id(patient_id)
+    # speech_predictions = [
+    #     {
+    #         "id": str(record["_id"]),
+    #         "prediction": record["prediction"]
+    #     } for record in speech_records
+    # ]
 
     return {
         "detail": "Predictions retrieved successfully",
-        "eeg_predictions": eeg_predictions,
-        "facial_predictions": facial_predictions,
-        "speech_predictions": speech_predictions,
+        "eeg_predictions": eeg_records,
+        "facial_predictions": [],
+        "speech_predictions": [],
         "success": True
     }
 

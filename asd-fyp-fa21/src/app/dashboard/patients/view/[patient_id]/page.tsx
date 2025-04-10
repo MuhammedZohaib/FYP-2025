@@ -119,7 +119,12 @@ export default function PatientInfo() {
         }
 
         const data = await response.json();
-        console.log(data)
+
+        console.log(JSON.stringify(data))
+
+        setPredictions(() => ({
+          eeg: data.eeg_predictions
+        }))
       } catch (error) {
         console.error("Error fetching patient:", error);
       }
@@ -352,10 +357,12 @@ export default function PatientInfo() {
               >
                 Add EEG Record
               </Button>
-              {renderTable(patient.eeg_data_records, [
+              {renderTable(predictions?.eeg, [
                 { header: "Record #", accessor: (_, i) => String(i + 1) },
-                { header: "Group", accessor: (rec) => rec.group || "-" },
-                { header: "Age", accessor: (rec) => rec.ageAtRecording || "-" },
+                { header: "Group", accessor: (rec) => rec.group ?? "-" },
+                { header: "Prediction Probablility", accessor: (rec) => Number(rec.prediction_result_in_probability).toFixed(5) || "-" },
+                { header: "Created At", accessor: (rec) => new Date(rec.created_at).toDateString() || "-" },
+                { header: "Updated At", accessor: (rec) => new Date(rec.updated_at).toDateString() || "-" },
               ])}
             </div>
           </TabContent>
@@ -451,7 +458,13 @@ export default function PatientInfo() {
                   <X size={20} />
                 </button>
               </div>
-              <EegDataForm patient={patient} updateData={console.log} closeModal={() => setShowEEGModal(() => false)}  />
+              <EegDataForm patient={patient} updateData={(data) => {
+                setPredictions(() => ({
+                    ...predictions,
+                    eeg: [...predictions.eeg, data]
+                  })
+                )
+              }} closeModal={() => setShowEEGModal(() => false)}  />
             </div>
           </div>
         </div>

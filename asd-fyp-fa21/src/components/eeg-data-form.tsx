@@ -166,7 +166,7 @@ export default function EegDataForm({
       
       const json = await res.json();
 
-      updateData(json.patient)
+      updateData(json.patient.eeg_data_records[0])
       
       console.log(json)
       

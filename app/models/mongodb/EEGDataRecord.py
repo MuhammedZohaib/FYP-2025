@@ -58,3 +58,12 @@ class EEGDataRecord:
     def count_eeg_records():
         collection = db.get_collection('eeg_data')
         return collection.count_documents({})
+
+    @classmethod
+    def find_by_patient_id(cls, patient_id: str):
+        collection = db.get_collection("eeg_data")
+        records = list(collection.find({"patient_id": patient_id}))
+
+        for record in records:
+            record["_id"] = str(record["_id"])  # Convert _id field to string
+        return records

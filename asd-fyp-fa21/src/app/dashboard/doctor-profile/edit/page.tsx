@@ -14,7 +14,7 @@ import Link from "next/link";
 interface DoctorData {
   _id: string;
   name: string;
-  email: string;
+  // email: string;
   location: string;
   phone: string;
   specialization: string;
@@ -32,7 +32,7 @@ export default function EditProfile() {
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<DoctorData>>({
     name: "",
-    email: "",
+    // email: "",
     location: "",
     phone: "",
     specialization: "",
@@ -60,7 +60,7 @@ export default function EditProfile() {
         const data = await response.json();
         setFormData({
           name: data.name,
-          email: data.email,
+          // email: data.email,
           location: data.location,
           phone: data.phone,
           specialization: data.specialization,
@@ -165,17 +165,17 @@ export default function EditProfile() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="bg-[#0f0f0f] border-gray-800"
-                />
-              </div>
+              {/* <div className="space-y-2"> */}
+              {/*   <Label htmlFor="email">Email</Label> */}
+              {/*   <Input */}
+              {/*     id="email" */}
+              {/*     name="email" */}
+              {/*     type="email" */}
+              {/*     value={formData.email} */}
+              {/*     onChange={handleChange} */}
+              {/*     className="bg-[#0f0f0f] border-gray-800" */}
+              {/*   /> */}
+              {/* </div> */}
 
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
