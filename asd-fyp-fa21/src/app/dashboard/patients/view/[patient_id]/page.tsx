@@ -23,6 +23,7 @@ import {
   TabContent,
 } from "@/components/ui/custom-tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import EegDataForm from "@/components/eeg-data-form";
 
 interface Patient {
   _id: string;
@@ -52,9 +53,11 @@ interface Patient {
   guardian_nic?: string;
 }
 
+
 export default function PatientInfo() {
   const { patient_id } = useParams();
   const [patient, setPatient] = useState<Patient>();
+  const [predictions, setPredictions] = useState<any>();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("patient-information");
 
@@ -96,8 +99,36 @@ export default function PatientInfo() {
       }
     }
 
+    async function get_predictions(){
+      try {
+        const accessToken = localStorage.getItem("access_token");
+        const response = await fetch(
+          `http://localhost:8000/api/patient/${patient_id}/predictions`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              access_token: accessToken || "",
+            },
+            credentials: "include",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch patient: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(data)
+      } catch (error) {
+        console.error("Error fetching patient:", error);
+      }
+    }
+
+
     if (patient_id) {
       fetchPatient();
+      get_predictions();
     }
   }, [patient_id]);
 
@@ -419,6 +450,7 @@ export default function PatientInfo() {
                 >
                   <X size={20} />
                 </button>
+                <EegDataForm />
               </div>
             </div>
           </div>
