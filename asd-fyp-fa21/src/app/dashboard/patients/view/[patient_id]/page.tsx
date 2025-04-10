@@ -450,8 +450,8 @@ export default function PatientInfo() {
                 >
                   <X size={20} />
                 </button>
-                <EegDataForm />
               </div>
+              <EegDataForm patient={patient} updateData={console.log} closeModal={() => setShowEEGModal(() => false)}  />
             </div>
           </div>
         </div>

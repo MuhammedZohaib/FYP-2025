@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, Calendar, Clock } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const endpoint = "http://localhost:8000/api"
 
 interface Patient {
   _id: string;
@@ -30,7 +32,7 @@ interface EEGRecord {
 
 interface EegDataFormProps {
   patient: Patient;
-  updateData: (data: EEGRecord[]) => void;
+  updateData: (data: any) => void;
   closeModal: () => void;
 }
 
@@ -147,33 +149,52 @@ export default function EegDataForm({
           }
           return acc;
         },
-        {} as Record<string, any>
+        {} as Record<string, unknown>
       );
 
       // In a real app, you would make an API call here
       console.log("Submitting data:", dataToSubmit);
 
-      // Mock API response
-      setTimeout(() => {
-        // Mock new record
-        const newRecord = {
-          _id: `record_${Date.now()}`,
-          group: parseInt(dataToSubmit.group),
-          time_point: parseInt(dataToSubmit.time_point),
-          prediction:
-            dataToSubmit.group === 2
-              ? "Highly likely ASD"
-              : "Typical Development",
-          prediction_result: dataToSubmit.group === 2 ? 2 : 1,
-          created_at: new Date().toISOString(),
-          ...dataToSubmit,
-        };
+      const res = await fetch(`${endpoint}/upload/eeg/${patient._id}`, {
+        method: 'POST',
+        headers: {
+          "access_token": localStorage.getItem("access_token") || "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSubmit),
+      })
+      
+      const json = await res.json();
 
-        // Update data in parent component
-        updateData([newRecord, ...patient.eeg_data_records]);
-        setLoading(false);
-        closeModal();
-      }, 1500);
+      updateData(json.patient)
+      
+      console.log(json)
+      
+      setLoading(false);
+      closeModal();
+
+      // Mock API response
+      // setTimeout(() => {
+      //   // Mock new record
+      //   const newRecord = {
+      //     _id: `record_${Date.now()}`,
+      //     group: parseInt(dataToSubmit.group),
+      //     time_point: parseInt(dataToSubmit.time_point),
+      //     prediction:
+      //       dataToSubmit.group === 2
+      //         ? "Highly likely ASD"
+      //         : "Typical Development",
+      //     prediction_result: dataToSubmit.group === 2 ? 2 : 1,
+      //     created_at: new Date().toISOString(),
+      //     ...dataToSubmit,
+      //   };
+      //
+      //   // Update data in parent component
+      //   updateData([newRecord, ...patient.eeg_data_records]);
+      //   setLoading(false);
+      //   closeModal();
+      // }, 1500);
+      
     } catch (error) {
       console.error("Error submitting EEG data:", error);
       setLoading(false);
