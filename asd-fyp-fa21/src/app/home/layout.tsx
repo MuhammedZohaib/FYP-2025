@@ -6,11 +6,6 @@ import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
-  title: "ASD Diagnosis Platform",
-  description: "Diagnose your ASD in minutes, not hours",
-};
-
 export default function RootLayout({
   children,
 }: {

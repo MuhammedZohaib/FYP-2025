@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -26,7 +26,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
-import Loading from "./loading";
 
 interface Patient {
   _id: string;
@@ -44,33 +43,71 @@ interface Patient {
   born_country: string;
   born_city: string;
   other_info?: string;
-  facial_data_records: any[];
   doctor: { _id: string; name: string };
   eeg_data_records: any[];
   speech_data_records: any[];
-  multimodal_records?: any[];
-  video_records?: any[];
   last_visit?: string;
-  guardian_name?: string;
-  guardian_nic?: string;
+  facial_data_records: FacialRecord[];
+  multimodal_records: MultimodalRecord[];
+  video_records: VideoRecord[];
+}
+
+interface SpeechRecord {
+  id: string;
+  data: string;
+  prediction: "positive" | "negative" | "unknown";
+  created_at: string;
+}
+
+interface EEGRecord {
+  id: string;
+  data: string;
+  prediction_result_in_category: string;
+  created_at: string;
+  prediction_result_in_probability?: number;
+  updated_at?: string;
+}
+
+interface FacialRecord {
+  id: string;
+  info?: string;
+  created_at: string;
+}
+
+interface VideoRecord {
+  id: string;
+  url?: string;
+  created_at: string;
+}
+
+interface MultimodalRecord {
+  id: string;
+  details?: string;
+  created_at: string;
+}
+
+interface Predictions {
+  eeg_data_records: EEGRecord[];
+  speech_data_records: SpeechRecord[];
+}
+
+interface TableColumn<T> {
+  header: string;
+  accessor: (item: T, index?: number) => string;
 }
 
 export default function PatientInfo() {
   const { patient_id } = useParams();
-  const [patient, setPatient] = useState<Patient>();
-  const [predictions, setPredictions] = useState<any>();
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [predictions, setPredictions] = useState<Predictions>({
+    eeg_data_records: [],
+    speech_data_records: [],
+  });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("patient-information");
+  const [error, setError] = useState<string | null>(null);
 
-  // Modal visibility states for each record type
   const [showEEGModal, setShowEEGModal] = useState(false);
-  const [showFacialModal, setShowFacialModal] = useState(false);
-  const [showMultimodalModal, setShowMultimodalModal] = useState(false);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showBehaviorModal, setShowBehaviorModal] = useState(false);
-  const [showEyeModal, setShowEyeModal] = useState(false);
   const [showSpeechModal, setShowSpeechModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -78,21 +115,33 @@ export default function PatientInfo() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const [showFacialModal, setShowFacialModal] = useState(false);
+  const [showMultimodalModal, setShowMultimodalModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
     async function fetchPatient() {
+      if (!patient_id) return;
+
+      setLoading(true);
+      setError(null);
+
       try {
         const accessToken = localStorage.getItem("access_token");
+        if (!accessToken) {
+          throw new Error("No access token found");
+        }
+
         const response = await fetch(
           `http://localhost:8000/api/patient/${patient_id}`,
           {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              access_token: accessToken || "",
+              access_token: accessToken,
             },
-            credentials: "include",
           }
         );
 
@@ -101,10 +150,17 @@ export default function PatientInfo() {
         }
 
         const data = await response.json();
+
+        if (!data.patient) {
+          throw new Error("No patient data received");
+        }
+
         setPatient(data.patient);
-        setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching patient:", error);
+        setError(error.message || "Failed to fetch patient data");
+        toast.error(error.message || "Failed to fetch patient data");
+      } finally {
         setLoading(false);
       }
     }
@@ -129,14 +185,40 @@ export default function PatientInfo() {
         }
 
         const data = await response.json();
+        console.log("Predictions data:", data);
 
-        console.log(JSON.stringify(data));
+        // Ensure we have arrays to work with
+        const eegPredictions = Array.isArray(data.eeg_predictions)
+          ? data.eeg_predictions
+          : [];
+        const speechPredictions = Array.isArray(data.speech_predictions)
+          ? data.speech_predictions
+          : [];
 
-        setPredictions(() => ({
-          eeg: data.eeg_predictions,
-        }));
+        setPredictions({
+          eeg_data_records: eegPredictions.map((record: any) => ({
+            id: record.id || String(Date.now()),
+            data: record.data || "",
+            prediction_result_in_category:
+              record.prediction_result_in_category || "",
+            created_at: record.created_at || new Date().toISOString(),
+            prediction_result_in_probability:
+              record.prediction_result_in_probability || 0,
+            updated_at: record.updated_at || "",
+          })),
+          speech_data_records: speechPredictions.map((record: any) => ({
+            id: record.id || String(Date.now()),
+            data: record.data || "",
+            prediction: record.prediction || "unknown",
+            created_at: record.created_at || new Date().toISOString(),
+          })),
+        });
       } catch (error) {
-        console.error("Error fetching patient:", error);
+        console.error("Error fetching predictions:", error);
+        setPredictions({
+          eeg_data_records: [],
+          speech_data_records: [],
+        });
       }
     }
 
@@ -212,25 +294,19 @@ export default function PatientInfo() {
         throw new Error(data.detail || "Failed to upload file");
       }
 
-      if (data.success && patient) {
-        const newRecord = {
+      if (data.success) {
+        const newRecord: SpeechRecord = {
+          id: String(Date.now()),
           data: data.file_location,
-          prediction: data.prediction,
+          prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
         };
 
-        setPatient((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            speech_data_records: [
-              ...(prev.speech_data_records || []),
-              newRecord,
-            ],
-          };
-        });
+        setPredictions((prev) => ({
+          ...prev,
+          speech_data_records: [...(prev.speech_data_records || []), newRecord],
+        }));
 
-        // Close modal and reset states
         setShowSpeechModal(false);
         setUploadFile(null);
         setDragActive(false);
@@ -245,53 +321,164 @@ export default function PatientInfo() {
     }
   };
 
-  if (!patient) {
-    return <Loading />;
+  const handleEEGUpload = async (data: EEGRecord) => {
+    try {
+      setPredictions((prev) => ({
+        ...prev,
+        eeg_data_records: [
+          ...prev.eeg_data_records,
+          {
+            id: data.id,
+            data: data.data,
+            prediction_result_in_category: data.prediction_result_in_category,
+            created_at: data.created_at,
+            prediction_result_in_probability:
+              data.prediction_result_in_probability || 0,
+            updated_at: data.updated_at || new Date().toISOString(),
+          },
+        ],
+      }));
+
+      toast.success("EEG record uploaded successfully");
+
+      // Show prediction toast if available
+      if (data.prediction_result_in_probability !== undefined) {
+        const predictionPercentage = (
+          data.prediction_result_in_probability * 100
+        ).toFixed(2);
+        toast.info(`Prediction probability: ${predictionPercentage}%`, {
+          duration: 5000,
+        });
+      }
+
+      setShowEEGModal(false);
+    } catch (error: any) {
+      console.error("Error handling EEG upload:", error);
+      toast.error(error.message || "Failed to process EEG data");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <p>Loading patient data...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // Helper function to render a simple table for predictions
-  const renderTable = (
-    records: any[] | undefined,
-    columns: {
-      header: string;
-      accessor: (record: any, index: number) => string;
-    }[]
-  ) => {
+  if (error) {
     return (
-      <table className="min-w-full mt-4">
-        <thead>
-          <tr className="border-b border-gray-700">
-            {columns.map((col, idx) => (
-              <th key={idx} className="px-4 py-2 text-left text-sm">
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {records && records.length > 0 ? (
-            records.map((record, index) => (
-              <tr key={index} className="border-t border-gray-700">
-                {columns.map((col, idx) => (
-                  <td key={idx} className="px-4 py-2 text-sm">
-                    {col.accessor(record, index)}
+      <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
+        <div className="flex items-center justify-center h-full">
+          <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 text-red-500">
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
+        <div className="flex items-center justify-center h-full">
+          <div className="bg-yellow-500/10 border border-yellow-500 rounded-lg p-4 text-yellow-500">
+            No patient found
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderTable = <T extends unknown>(
+    data: T[] | undefined,
+    columns: TableColumn<T>[]
+  ): JSX.Element => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-400">No records found</div>
+      );
+    }
+
+    return (
+      <div className="relative overflow-x-auto mt-4">
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              {columns.map((column, i) => (
+                <th
+                  key={i}
+                  className="px-6 py-3 bg-[#1f1f1f] text-xs font-medium text-gray-300 uppercase tracking-wider border-b border-gray-800"
+                >
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((record, i) => (
+              <tr
+                key={i}
+                className="border-b border-gray-800 bg-[#1a1a1a] hover:bg-[#1f1f1f] transition-colors"
+              >
+                {columns.map((column, j) => (
+                  <td
+                    key={j}
+                    className="px-6 py-4 text-sm text-gray-300 whitespace-nowrap"
+                  >
+                    {column.accessor(record, i)}
                   </td>
                 ))}
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-2 text-center text-gray-400"
-              >
-                No records found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
+  };
+
+  const renderSpeechRecords = () => {
+    const records: SpeechRecord[] = predictions?.speech_data_records ?? [];
+
+    if (records.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          No speech records found
+        </div>
+      );
+    }
+
+    return renderTable(records, [
+      {
+        header: "Record #",
+        accessor: (_, i: number) => String(i + 1),
+      },
+      {
+        header: "File Name",
+        accessor: (rec: SpeechRecord) => {
+          if (!rec.data) return "-";
+          const parts = rec.data.split("/");
+          const fileName = parts[parts.length - 1]
+            .split("_")[1]
+            .concat(parts[parts.length - 1].split("_")[2]);
+          return fileName;
+        },
+      },
+      {
+        header: "Prediction",
+        accessor: (rec: SpeechRecord) => rec.prediction || "unknown",
+      },
+      {
+        header: "Created At",
+        accessor: (rec: SpeechRecord) =>
+          new Date(rec.created_at).toDateString(),
+      },
+    ] as TableColumn<SpeechRecord>[]);
   };
 
   return (
@@ -454,105 +641,163 @@ export default function PatientInfo() {
           {/* EEG Record Tab */}
           <TabContent id="eeg-record">
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
-              <h3 className="text-lg font-medium mb-4">EEG Records</h3>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowEEGModal(true)}
-              >
-                Add EEG Record
-              </Button>
-              {renderTable(predictions?.eeg, [
-                { header: "Record #", accessor: (_, i) => String(i + 1) },
-                { header: "Group", accessor: (rec) => rec.group ?? "-" },
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">EEG Records</h3>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setShowEEGModal(true)}
+                >
+                  Add EEG Record
+                </Button>
+              </div>
+              {renderTable(predictions.eeg_data_records, [
+                {
+                  header: "Record #",
+                  accessor: (_, i: number) => String(i + 1),
+                },
+                {
+                  header: "Class",
+                  accessor: (rec: EEGRecord) =>
+                    rec.prediction_result_in_category ?? "-",
+                },
                 {
                   header: "Prediction Probablility",
-                  accessor: (rec) =>
+                  accessor: (rec: EEGRecord) =>
                     Number(rec.prediction_result_in_probability).toFixed(5) ||
                     "-",
                 },
                 {
                   header: "Created At",
-                  accessor: (rec) =>
-                    new Date(rec.created_at).toDateString() || "-",
+                  accessor: (rec: EEGRecord) =>
+                    rec.created_at
+                      ? new Date(rec.created_at).toDateString()
+                      : "-",
                 },
                 {
                   header: "Updated At",
-                  accessor: (rec) =>
-                    new Date(rec.updated_at).toDateString() || "-",
+                  accessor: (rec: EEGRecord) =>
+                    rec.updated_at
+                      ? new Date(rec.updated_at).toDateString()
+                      : "-",
                 },
-              ])}
+              ] as TableColumn<EEGRecord>[])}
             </div>
           </TabContent>
 
           {/* Facial Information Record Tab */}
           <TabContent id="facial-information-record">
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
-              <h3 className="text-lg font-medium mb-4">
-                Facial Information Records
-              </h3>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowFacialModal(true)}
-              >
-                Add Facial Record
-              </Button>
-              {renderTable(patient.facial_data_records, [
-                { header: "Record #", accessor: (_, i) => String(i + 1) },
-                { header: "Info", accessor: (rec) => rec.info || "-" },
-              ])}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">
+                  Facial Information Records
+                </h3>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setShowFacialModal(true)}
+                >
+                  Add Facial Record
+                </Button>
+              </div>
+              {renderTable(
+                patient.facial_data_records as FacialRecord[],
+                [
+                  {
+                    header: "Record #",
+                    accessor: (_: FacialRecord, i: number) => String(i + 1),
+                  },
+                  {
+                    header: "Info",
+                    accessor: (rec: FacialRecord) => rec.info || "-",
+                  },
+                  {
+                    header: "Created At",
+                    accessor: (rec: FacialRecord) =>
+                      new Date(rec.created_at).toLocaleString(),
+                  },
+                ] as TableColumn<FacialRecord>[]
+              )}
             </div>
           </TabContent>
+
           {/* Multimodal Record Tab */}
           <TabContent id="multimodal-record">
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
-              <h3 className="text-lg font-medium mb-4">Multimodal Records</h3>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowMultimodalModal(true)}
-              >
-                Add Multimodal Record
-              </Button>
-              {renderTable(patient.multimodal_records, [
-                { header: "Record #", accessor: (_, i) => String(i + 1) },
-                { header: "Details", accessor: (rec) => rec.details || "-" },
-              ])}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Multimodal Records</h3>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setShowMultimodalModal(true)}
+                >
+                  Add Multimodal Record
+                </Button>
+              </div>
+              {renderTable(
+                (patient.multimodal_records || []) as MultimodalRecord[],
+                [
+                  {
+                    header: "Record #",
+                    accessor: (_: MultimodalRecord, i: number) => String(i + 1),
+                  },
+                  {
+                    header: "Details",
+                    accessor: (rec: MultimodalRecord) => rec.details || "-",
+                  },
+                  {
+                    header: "Created At",
+                    accessor: (rec: MultimodalRecord) =>
+                      new Date(rec.created_at).toLocaleString(),
+                  },
+                ] as TableColumn<MultimodalRecord>[]
+              )}
+            </div>
+          </TabContent>
+
+          {/* Video Record Tab */}
+          <TabContent id="video-record">
+            <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Video Records</h3>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setShowVideoModal(true)}
+                >
+                  Add Video Record
+                </Button>
+              </div>
+              {renderTable(
+                (patient.video_records || []) as VideoRecord[],
+                [
+                  {
+                    header: "Record #",
+                    accessor: (_: VideoRecord, i: number) => String(i + 1),
+                  },
+                  {
+                    header: "Video URL",
+                    accessor: (rec: VideoRecord) => rec.url || "-",
+                  },
+                  {
+                    header: "Created At",
+                    accessor: (rec: VideoRecord) =>
+                      new Date(rec.created_at).toLocaleString(),
+                  },
+                ] as TableColumn<VideoRecord>[]
+              )}
             </div>
           </TabContent>
 
           {/* Speech Data Records Tab */}
           <TabContent id="speech-data-records">
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
-              <h3 className="text-lg font-medium mb-4">Speech Data Records</h3>
-              <Button
-                onClick={() => setShowSpeechModal(true)}
-                className="bg-blue-500 hover:bg-blue-600"
-              >
-                Add Speech Record
-              </Button>
-              {renderTable(patient.speech_data_records, [
-                { header: "Record #", accessor: (_, i) => String(i + 1) },
-                {
-                  header: "Transcript",
-                  accessor: (rec) => rec.transcript || "-",
-                },
-              ])}
-            </div>
-          </TabContent>
-
-          {/* Video Record Tab (New) */}
-          <TabContent id="video-record">
-            <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
-              <h3 className="text-lg font-medium mb-4">Video Records</h3>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowVideoModal(true)}
-              >
-                Add Video Record
-              </Button>
-              {renderTable(patient.video_records, [
-                { header: "Record #", accessor: (_, i) => String(i + 1) },
-                { header: "Video URL", accessor: (rec) => rec.url || "-" },
-              ])}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Speech Data Records</h3>
+                <Button
+                  onClick={() => setShowSpeechModal(true)}
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  Add Speech Record
+                </Button>
+              </div>
+              {renderSpeechRecords()}
             </div>
           </TabContent>
         </Tabs>
@@ -576,82 +821,9 @@ export default function PatientInfo() {
               </div>
               <EegDataForm
                 patient={patient}
-                updateData={(data) => {
-                  setPredictions(() => ({
-                    ...predictions,
-                    eeg: [...predictions.eeg, data],
-                  }));
-                }}
+                updateData={handleEEGUpload}
                 closeModal={() => setShowEEGModal(() => false)}
               />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Facial Modal */}
-      {showFacialModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Facial Information Record
-                </h2>
-                <button
-                  onClick={() => setShowFacialModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">Facial record form goes here...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Multimodal Modal */}
-      {showMultimodalModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Multimodal Record
-                </h2>
-                <button
-                  onClick={() => setShowMultimodalModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">
-                Multimodal record form goes here...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Video Modal */}
-      {showVideoModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Video Record
-                </h2>
-                <button
-                  onClick={() => setShowVideoModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">Video record form goes here...</p>
             </div>
           </div>
         </div>
@@ -734,86 +906,82 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Other modals */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">Delete Record</h2>
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">
-                Delete confirmation dialog goes here...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">Edit Record</h2>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">Edit form goes here...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showBehaviorModal && (
+      {/* Facial Modal */}
+      {showFacialModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
             <div className="p-6">
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold text-white">
-                  Add Behavior Record
+                  Add Facial Information Record
                 </h2>
                 <button
-                  onClick={() => setShowBehaviorModal(false)}
+                  onClick={() => setShowFacialModal(false)}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-gray-400">Behavior record form goes here...</p>
+              <div className="mt-4">
+                {/* Add your facial record form here */}
+                <p className="text-gray-400">
+                  Facial record form implementation coming soon...
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {showEyeModal && (
+      {/* Multimodal Modal */}
+      {showMultimodalModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
             <div className="p-6">
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-xl font-bold text-white">
-                  Add Eye Contact Record
+                  Add Multimodal Record
                 </h2>
                 <button
-                  onClick={() => setShowEyeModal(false)}
+                  onClick={() => setShowMultimodalModal(false)}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-gray-400">
-                Eye contact record form goes here...
-              </p>
+              <div className="mt-4">
+                {/* Add your multimodal record form here */}
+                <p className="text-gray-400">
+                  Multimodal record form implementation coming soon...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Modal */}
+      {showVideoModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-xl font-bold text-white">
+                  Add Video Record
+                </h2>
+                <button
+                  onClick={() => setShowVideoModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="mt-4">
+                {/* Add your video record form here */}
+                <p className="text-gray-400">
+                  Video record form implementation coming soon...
+                </p>
+              </div>
             </div>
           </div>
         </div>

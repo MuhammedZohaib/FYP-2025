@@ -9,7 +9,6 @@ class SpeechRecord:
         self.data = data
         self.date = created_at
         self.prediction = prediction
-        self.inserted_collection_id = ""
 
     def save_speech_record(self):
         collection = db.get_collection('speech_records')
@@ -22,7 +21,11 @@ class SpeechRecord:
         speech_collection = db.get_collection('speech_records')
         return speech_collection.count_documents({})
 
-    @staticmethod
-    def find_by_patient_id(patient_id: str):
-        collection = db.get_collection('speech_records')
-        return collection.find({"patient_id": patient_id})
+    @classmethod
+    def find_by_patient_id(cls, patient_id: str):
+        collection = db.get_collection("speech_records")
+        records = list(collection.find({"patient_id": patient_id}))
+
+        for record in records:
+            record["_id"] = str(record["_id"])  
+        return records
