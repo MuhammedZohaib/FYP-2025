@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const endpoint = "http://localhost:8000/api"
+const endpoint = "http://localhost:8000/api";
 
 interface Patient {
   _id: string;
@@ -109,7 +109,6 @@ export default function EegDataForm({
   };
 
   const parseCSV = (csvData: string) => {
-    // Simple CSV parsing (in a real app, use a library like PapaParse)
     const lines = csvData.split("\n");
     if (lines.length > 1) {
       const headers = lines[0].split(",");
@@ -156,45 +155,22 @@ export default function EegDataForm({
       console.log("Submitting data:", dataToSubmit);
 
       const res = await fetch(`${endpoint}/upload/eeg/${patient._id}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          "access_token": localStorage.getItem("access_token") || "",
+          access_token: localStorage.getItem("access_token") || "",
           "Content-Type": "application/json",
         },
         body: JSON.stringify(dataToSubmit),
-      })
-      
+      });
+
       const json = await res.json();
 
-      updateData(json.patient.eeg_data_records[0])
-      
-      console.log(json)
-      
+      updateData(json.patient.eeg_data_records[0]);
+
+      console.log(json);
+
       setLoading(false);
       closeModal();
-
-      // Mock API response
-      // setTimeout(() => {
-      //   // Mock new record
-      //   const newRecord = {
-      //     _id: `record_${Date.now()}`,
-      //     group: parseInt(dataToSubmit.group),
-      //     time_point: parseInt(dataToSubmit.time_point),
-      //     prediction:
-      //       dataToSubmit.group === 2
-      //         ? "Highly likely ASD"
-      //         : "Typical Development",
-      //     prediction_result: dataToSubmit.group === 2 ? 2 : 1,
-      //     created_at: new Date().toISOString(),
-      //     ...dataToSubmit,
-      //   };
-      //
-      //   // Update data in parent component
-      //   updateData([newRecord, ...patient.eeg_data_records]);
-      //   setLoading(false);
-      //   closeModal();
-      // }, 1500);
-      
     } catch (error) {
       console.error("Error submitting EEG data:", error);
       setLoading(false);

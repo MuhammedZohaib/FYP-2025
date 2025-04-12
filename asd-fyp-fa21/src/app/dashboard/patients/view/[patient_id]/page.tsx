@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,6 +14,7 @@ import {
   FileText,
   User,
   X,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/custom-tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import EegDataForm from "@/components/eeg-data-form";
+import { toast } from "sonner";
+import Loading from "./loading";
 
 interface Patient {
   _id: string;
@@ -45,14 +48,12 @@ interface Patient {
   doctor: { _id: string; name: string };
   eeg_data_records: any[];
   speech_data_records: any[];
-  // Optionally add these if your API provides them:
   multimodal_records?: any[];
   video_records?: any[];
   last_visit?: string;
   guardian_name?: string;
   guardian_nic?: string;
 }
-
 
 export default function PatientInfo() {
   const { patient_id } = useParams();
@@ -65,8 +66,17 @@ export default function PatientInfo() {
   const [showEEGModal, setShowEEGModal] = useState(false);
   const [showFacialModal, setShowFacialModal] = useState(false);
   const [showMultimodalModal, setShowMultimodalModal] = useState(false);
-  const [showSpeechModal, setShowSpeechModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showBehaviorModal, setShowBehaviorModal] = useState(false);
+  const [showEyeModal, setShowEyeModal] = useState(false);
+  const [showSpeechModal, setShowSpeechModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -99,7 +109,7 @@ export default function PatientInfo() {
       }
     }
 
-    async function get_predictions(){
+    async function get_predictions() {
       try {
         const accessToken = localStorage.getItem("access_token");
         const response = await fetch(
@@ -120,16 +130,15 @@ export default function PatientInfo() {
 
         const data = await response.json();
 
-        console.log(JSON.stringify(data))
+        console.log(JSON.stringify(data));
 
         setPredictions(() => ({
-          eeg: data.eeg_predictions
-        }))
+          eeg: data.eeg_predictions,
+        }));
       } catch (error) {
         console.error("Error fetching patient:", error);
       }
     }
-
 
     if (patient_id) {
       fetchPatient();
@@ -137,12 +146,107 @@ export default function PatientInfo() {
     }
   }, [patient_id]);
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      if (files[0].type.startsWith("audio/")) {
+        setUploadFile(files[0]);
+        toast.success("Audio file selected successfully");
+      } else {
+        toast.error("Please upload an audio file");
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      if (files[0].type.startsWith("audio/")) {
+        setUploadFile(files[0]);
+        toast.success("Audio file selected successfully");
+      } else {
+        toast.error("Please upload an audio file");
+      }
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", uploadFile);
+
+      const accessToken = localStorage.getItem("access_token");
+      const response = await fetch(
+        `http://localhost:8000/api/upload/speech/${patient_id}`,
+        {
+          method: "POST",
+          headers: {
+            access_token: accessToken || "",
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to upload file");
+      }
+
+      if (data.success && patient) {
+        const newRecord = {
+          data: data.file_location,
+          prediction: data.prediction,
+          created_at: new Date().toISOString(),
+        };
+
+        setPatient((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            speech_data_records: [
+              ...(prev.speech_data_records || []),
+              newRecord,
+            ],
+          };
+        });
+
+        // Close modal and reset states
+        setShowSpeechModal(false);
+        setUploadFile(null);
+        setDragActive(false);
+        toast.success("Speech record uploaded successfully");
+      }
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      setUploadError(error.message || "Failed to upload file");
+      toast.error(error.message || "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (!patient) {
-    return (
-      <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
-        No patient found.
-      </div>
-    );
+    return <Loading />;
   }
 
   // Helper function to render a simple table for predictions
@@ -360,9 +464,22 @@ export default function PatientInfo() {
               {renderTable(predictions?.eeg, [
                 { header: "Record #", accessor: (_, i) => String(i + 1) },
                 { header: "Group", accessor: (rec) => rec.group ?? "-" },
-                { header: "Prediction Probablility", accessor: (rec) => Number(rec.prediction_result_in_probability).toFixed(5) || "-" },
-                { header: "Created At", accessor: (rec) => new Date(rec.created_at).toDateString() || "-" },
-                { header: "Updated At", accessor: (rec) => new Date(rec.updated_at).toDateString() || "-" },
+                {
+                  header: "Prediction Probablility",
+                  accessor: (rec) =>
+                    Number(rec.prediction_result_in_probability).toFixed(5) ||
+                    "-",
+                },
+                {
+                  header: "Created At",
+                  accessor: (rec) =>
+                    new Date(rec.created_at).toDateString() || "-",
+                },
+                {
+                  header: "Updated At",
+                  accessor: (rec) =>
+                    new Date(rec.updated_at).toDateString() || "-",
+                },
               ])}
             </div>
           </TabContent>
@@ -385,7 +502,6 @@ export default function PatientInfo() {
               ])}
             </div>
           </TabContent>
-
           {/* Multimodal Record Tab */}
           <TabContent id="multimodal-record">
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
@@ -408,8 +524,8 @@ export default function PatientInfo() {
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
               <h3 className="text-lg font-medium mb-4">Speech Data Records</h3>
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={() => setShowSpeechModal(true)}
+                className="bg-blue-500 hover:bg-blue-600"
               >
                 Add Speech Record
               </Button>
@@ -458,13 +574,16 @@ export default function PatientInfo() {
                   <X size={20} />
                 </button>
               </div>
-              <EegDataForm patient={patient} updateData={(data) => {
-                setPredictions(() => ({
+              <EegDataForm
+                patient={patient}
+                updateData={(data) => {
+                  setPredictions(() => ({
                     ...predictions,
-                    eeg: [...predictions.eeg, data]
-                  })
-                )
-              }} closeModal={() => setShowEEGModal(() => false)}  />
+                    eeg: [...predictions.eeg, data],
+                  }));
+                }}
+                closeModal={() => setShowEEGModal(() => false)}
+              />
             </div>
           </div>
         </div>
@@ -516,28 +635,6 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Speech Modal */}
-      {showSpeechModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Speech Data Record
-                </h2>
-                <button
-                  onClick={() => setShowSpeechModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <p className="text-gray-400">Speech record form goes here...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Video Modal */}
       {showVideoModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -555,6 +652,168 @@ export default function PatientInfo() {
                 </button>
               </div>
               <p className="text-gray-400">Video record form goes here...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Speech Upload Modal */}
+      {showSpeechModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Upload Speech Record</h2>
+                <button
+                  onClick={() => {
+                    setShowSpeechModal(false);
+                    setUploadFile(null);
+                    setUploadError(null);
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+
+              {uploadError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+                  {uploadError}
+                </div>
+              )}
+
+              <div
+                className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                  dragActive
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-gray-700"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                <p className="text-lg font-semibold text-gray-400">
+                  {uploadFile ? uploadFile.name : "Drag and Drop audio file"}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Click to browse or drag and drop
+                </p>
+              </div>
+
+              {uploadFile && (
+                <Button
+                  className="w-full mt-4 bg-green-500 hover:bg-green-600 relative"
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                      Uploading...
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="mr-2" size={16} />
+                      Upload File
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Other modals */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-xl font-bold text-white">Delete Record</h2>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-gray-400">
+                Delete confirmation dialog goes here...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-xl font-bold text-white">Edit Record</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-gray-400">Edit form goes here...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBehaviorModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-xl font-bold text-white">
+                  Add Behavior Record
+                </h2>
+                <button
+                  onClick={() => setShowBehaviorModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-gray-400">Behavior record form goes here...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEyeModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-xl font-bold text-white">
+                  Add Eye Contact Record
+                </h2>
+                <button
+                  onClick={() => setShowEyeModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-gray-400">
+                Eye contact record form goes here...
+              </p>
             </div>
           </div>
         </div>

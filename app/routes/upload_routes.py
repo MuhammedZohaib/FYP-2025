@@ -151,7 +151,7 @@ def upload_image(patient_id: str, request: Request, image: UploadFile = File(...
 
 
 @router.post('/speech/{patient_id}', status_code=status.HTTP_200_OK)
-def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(...)):
+async def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(...)):
     token = request.headers.get("access_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
@@ -170,8 +170,11 @@ def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(..
 
     filename = f"{patient_id}_{audio.filename}"
     file_location = os.path.join(UPLOADS_DIR_SPEECH, filename)
+    
+    # Read file content asynchronously
+    contents = await audio.read()
     with open(os.path.join(UPLOADS_DIR_SPEECH, filename), "wb") as f:
-        f.write(audio.read())
+        f.write(contents)
 
     mfcc_features = extract_mfcc_features(file_location)
     speech_prediction = audio_model.predict(mfcc_features)
@@ -182,13 +185,10 @@ def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(..
     speech_record = SpeechRecord(patient_id=patient_id, data=file_location, created_at=datetime.now(),
                                  prediction=prediction)
     speech_inserted_id = speech_record.save_speech_record()
-    print(speech_inserted_id)
     if not speech_inserted_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
     patient_dict["speech_data_records"].append(speech_data_record.model_dump())
-    print(patient_dict)
     Patient.update(patient_id, patient_dict)
-    print(patient)
     return {"detail": f"Audio {filename} uploaded successfully.", "prediction": prediction, "patient": str(patient),
             "success": True}
 
