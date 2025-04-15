@@ -76,7 +76,8 @@ interface FacialRecord {
 
 interface VideoRecord {
   id: string;
-  url?: string;
+  data: string;
+  prediction: "positive" | "negative" | "unknown";
   created_at: string;
 }
 
@@ -118,6 +119,18 @@ export default function PatientInfo() {
   const [showFacialModal, setShowFacialModal] = useState(false);
   const [showMultimodalModal, setShowMultimodalModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
+
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
+  const [videoDragActive, setVideoDragActive] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const [isModelLoading, setIsModelLoading] = useState(false);
+  const [modelLoadingError, setModelLoadingError] = useState<string | null>(
+    null
+  );
+  const [isModelReady, setIsModelReady] = useState(false);
 
   const router = useRouter();
 
@@ -358,6 +371,176 @@ export default function PatientInfo() {
     }
   };
 
+  const handleVideoDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setVideoDragActive(true);
+    } else if (e.type === "dragleave") {
+      setVideoDragActive(false);
+    }
+  };
+
+  const handleVideoDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setVideoDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      if (files[0].type.startsWith("video/")) {
+        setVideoFile(files[0]);
+        toast.success("Video file selected successfully");
+      } else {
+        toast.error("Please upload a video file");
+      }
+    }
+  };
+
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      if (files[0].type.startsWith("video/")) {
+        setVideoFile(files[0]);
+        toast.success("Video file selected successfully");
+      } else {
+        toast.error("Please upload a video file");
+      }
+    }
+  };
+
+  const handleVideoUpload = async () => {
+    if (!videoFile) return;
+
+    setIsVideoUploading(true);
+    setVideoUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("video", videoFile);
+
+      const accessToken = localStorage.getItem("access_token");
+      const response = await fetch(
+        `http://localhost:8000/api/upload/video/${patient_id}`,
+        {
+          method: "POST",
+          headers: {
+            access_token: accessToken || "",
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to upload file");
+      }
+
+      if (data.success) {
+        const newRecord: VideoRecord = {
+          id: String(Date.now()),
+          data: data.file_location,
+          prediction: data.prediction || "unknown",
+          created_at: new Date().toISOString(),
+        };
+
+        // Update patient's video records
+        setPatient((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            video_records: [...(prev.video_records || []), newRecord],
+          };
+        });
+
+        setShowVideoModal(false);
+        setVideoFile(null);
+        setVideoDragActive(false);
+        toast.success("Video record uploaded successfully");
+
+        // Show prediction toast
+        toast.info(`ASD Prediction: ${data.prediction}`, {
+          duration: 5000,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error uploading video:", error);
+      setVideoUploadError(error.message || "Failed to upload video");
+      toast.error(error.message || "Failed to upload video");
+    } finally {
+      setIsVideoUploading(false);
+    }
+  };
+
+  const checkModelStatus = async () => {
+    let response: Response | undefined;
+    let responseData: any = null;
+
+    try {
+      setIsModelLoading(true);
+      setModelLoadingError(null);
+
+      const accessToken = localStorage.getItem("access_token");
+      response = await fetch(
+        "http://localhost:8000/api/upload/model/video/status",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: accessToken || "",
+          },
+        }
+      );
+
+      responseData = await response.json();
+
+      if (responseData.is_ready) {
+        setIsModelReady(true);
+        toast.success("Video model loaded successfully");
+      } else if (responseData.is_loading) {
+        setIsModelLoading(true);
+        setTimeout(checkModelStatus, 2000);
+      } else {
+        const errorMessage = responseData.error || "Model not ready";
+        if (errorMessage.includes("'Net' object has no attribute 'fc'")) {
+          setModelLoadingError(
+            "Model architecture mismatch: The SlowFast model requires specific initialization. Please ensure you're using the correct model architecture from PyTorchVideo."
+          );
+          toast.error("Video model architecture mismatch", {
+            description: "Please check server logs for details",
+          });
+        } else {
+          setModelLoadingError(errorMessage);
+          toast.error("Video model not ready");
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to check model status";
+      if (errorMessage.includes("'Net' object has no attribute 'fc'")) {
+        setModelLoadingError(
+          "Model architecture mismatch: The SlowFast model requires specific initialization. Please ensure you're using the correct model architecture from PyTorchVideo."
+        );
+        toast.error("Video model architecture mismatch", {
+          description: "Please verify model initialization on the server",
+        });
+      } else {
+        setModelLoadingError(errorMessage);
+        toast.error("Failed to check model status");
+      }
+    } finally {
+      if (!responseData?.is_loading) {
+        setIsModelLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "video-record" && !isModelReady) {
+      checkModelStatus();
+    }
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
@@ -479,6 +662,37 @@ export default function PatientInfo() {
           new Date(rec.created_at).toDateString(),
       },
     ] as TableColumn<SpeechRecord>[]);
+  };
+
+  const renderVideoRecords = () => {
+    const records = patient?.video_records || [];
+
+    return renderTable(
+      records as VideoRecord[],
+      [
+        {
+          header: "Record #",
+          accessor: (_, i: number) => String(i + 1),
+        },
+        {
+          header: "File Name",
+          accessor: (rec: VideoRecord) => {
+            if (!rec.data) return "-";
+            const parts = rec.data.split("/");
+            return parts[parts.length - 1];
+          },
+        },
+        {
+          header: "Prediction",
+          accessor: (rec: VideoRecord) => rec.prediction || "unknown",
+        },
+        {
+          header: "Created At",
+          accessor: (rec: VideoRecord) =>
+            new Date(rec.created_at).toLocaleString(),
+        },
+      ] as TableColumn<VideoRecord>[]
+    );
   };
 
   return (
@@ -757,30 +971,77 @@ export default function PatientInfo() {
             <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">Video Records</h3>
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => setShowVideoModal(true)}
-                >
-                  Add Video Record
-                </Button>
+                {isModelReady ? (
+                  <Button
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => setShowVideoModal(true)}
+                  >
+                    Add Video Record
+                  </Button>
+                ) : (
+                  <Button className="bg-gray-600 cursor-not-allowed" disabled>
+                    Model Loading...
+                  </Button>
+                )}
               </div>
-              {renderTable(
-                (patient.video_records || []) as VideoRecord[],
-                [
-                  {
-                    header: "Record #",
-                    accessor: (_: VideoRecord, i: number) => String(i + 1),
-                  },
-                  {
-                    header: "Video URL",
-                    accessor: (rec: VideoRecord) => rec.url || "-",
-                  },
-                  {
-                    header: "Created At",
-                    accessor: (rec: VideoRecord) =>
-                      new Date(rec.created_at).toLocaleString(),
-                  },
-                ] as TableColumn<VideoRecord>[]
+
+              {isModelLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                  <p className="text-gray-400 text-lg">
+                    Loading Video Model...
+                  </p>
+                  <p className="text-gray-500 text-sm mt-2">
+                    This may take a few moments
+                  </p>
+                </div>
+              ) : modelLoadingError ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-red-500 max-w-md text-center">
+                    <p className="font-semibold mb-2">
+                      Failed to load video model
+                    </p>
+                    <p className="text-sm mb-4">{modelLoadingError}</p>
+                    {modelLoadingError.includes("SlowFast model") && (
+                      <div className="text-sm bg-red-500/5 p-4 rounded-lg mb-4">
+                        <p className="font-medium mb-2">
+                          Troubleshooting Steps:
+                        </p>
+                        <ol className="text-left list-decimal pl-4 space-y-2">
+                          <li>
+                            Verify PyTorchVideo is properly installed on the
+                            server
+                          </li>
+                          <li>
+                            Ensure the model weights match the SlowFast
+                            architecture
+                          </li>
+                          <li>
+                            Check if the model is being loaded with the correct
+                            parameters:
+                            <ul className="list-disc pl-4 mt-1 text-xs">
+                              <li>Input frames: 16</li>
+                              <li>Frame size: 112x112</li>
+                              <li>Channels: RGB (3)</li>
+                            </ul>
+                          </li>
+                          <li>
+                            Confirm the final layer is properly modified for 2
+                            classes
+                          </li>
+                        </ol>
+                      </div>
+                    )}
+                    <Button
+                      className="mt-4 bg-red-500 hover:bg-red-600"
+                      onClick={checkModelStatus}
+                    >
+                      Retry Loading
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                renderVideoRecords()
               )}
             </div>
           </TabContent>
@@ -961,27 +1222,80 @@ export default function PatientInfo() {
       )}
 
       {/* Video Modal */}
-      {showVideoModal && (
+      {showVideoModal && isModelReady && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Video Record
-                </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Upload Video Record</h2>
                 <button
-                  onClick={() => setShowVideoModal(false)}
+                  onClick={() => {
+                    setShowVideoModal(false);
+                    setVideoFile(null);
+                    setVideoUploadError(null);
+                  }}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="mt-4">
-                {/* Add your video record form here */}
-                <p className="text-gray-400">
-                  Video record form implementation coming soon...
+
+              {videoUploadError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+                  {videoUploadError}
+                </div>
+              )}
+
+              <div
+                className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                  videoDragActive
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-gray-700"
+                }`}
+                onDragEnter={handleVideoDrag}
+                onDragLeave={handleVideoDrag}
+                onDragOver={handleVideoDrag}
+                onDrop={handleVideoDrop}
+                onClick={() => videoInputRef.current?.click()}
+              >
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                />
+                <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                <p className="text-lg font-semibold text-gray-400">
+                  {videoFile ? videoFile.name : "Drag and Drop video file"}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Click to browse or drag and drop
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported formats: MP4, AVI, MOV
                 </p>
               </div>
+
+              {videoFile && (
+                <Button
+                  className="w-full mt-4 bg-green-500 hover:bg-green-600 relative"
+                  onClick={handleVideoUpload}
+                  disabled={isVideoUploading}
+                >
+                  {isVideoUploading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                      Uploading...
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="mr-2" size={16} />
+                      Upload Video
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
