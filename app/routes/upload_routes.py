@@ -1,3 +1,4 @@
+import io
 import os
 import logging
 from datetime import datetime
@@ -9,6 +10,12 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
 from jose import jwt
+import cv2
+import torch
+import torchvision.transforms as transforms
+from pydantic import BaseModel
+from typing import Dict
+from PIL import Image
 
 from auth import verify_token
 from keys import SECRET_KEY
@@ -16,6 +23,7 @@ from models.mongodb.EEGDataRecord import EEGDataRecord
 from models.mongodb.FacialDataRecord import FacialDataRecord
 from models.mongodb.Patient import Patient
 from models.mongodb.SpeechDataRecord import SpeechRecord
+from models.mongodb.VideoDataRecord import VideoRecord
 from pydantic_schemas.FacialDataRecord import FacialDataRecordSchema
 from pydantic_schemas.SpeechDataRecord import SpeechDataRecordSchema
 from utils import inference_yolo, inference_efficientnet, extract_mfcc_features
@@ -44,6 +52,69 @@ UPLOADS_DIR_SPEECH = os.path.join(CURRENT_DIR, "uploads/speech")
 if not os.path.exists(UPLOADS_DIR_SPEECH):
     os.makedirs(UPLOADS_DIR_SPEECH)
 
+UPLOADS_DIR_VIDEO = os.path.join(CURRENT_DIR, "uploads/video")
+if not os.path.exists(UPLOADS_DIR_VIDEO):
+    os.makedirs(UPLOADS_DIR_VIDEO)
+
+
+# Model loading status and global variables
+model_status: Dict[str, bool] = {
+    "is_loading": False,
+    "is_ready": False,
+    "error": None
+}
+
+# Initialize global model variable
+model = None
+
+# Load the video model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger.info(f"Using device: {device}")
+
+async def load_video_model():
+    global model, model_status
+    if model_status["is_loading"]:
+        return
+    model_status.update({"is_loading": True, "is_ready": False, "error": None})
+    try:
+        model = torch.hub.load("facebookresearch/pytorchvideo", "slowfast_r50", pretrained=True)
+        num_features = model.blocks[-1].proj.in_features
+        model.blocks[-1].proj = torch.nn.Linear(num_features, 2)
+        state_dict = torch.load("models/ml/weights/best_model.pth", map_location=device)
+        model.load_state_dict(state_dict, strict=False)
+        model = model.to(device)
+        model.eval()
+        model_status.update({"is_ready": True})
+        logger.info("Video model loaded successfully")
+    except Exception as e:
+        msg = str(e)
+        model_status.update({"error": msg, "is_ready": False})
+        logger.error(f"Error loading video model: {msg}")
+        model = None
+    finally:
+        model_status["is_loading"] = False
+
+# Load model on startup
+@router.on_event("startup")
+async def startup_event():
+    logger.info("Loading video model on startup...")
+    await load_video_model()
+
+NUM_FRAMES = 16
+FRAME_SIZE = (224, 224)
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize(FRAME_SIZE),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
+
+class VideoDataRecordSchema(BaseModel):
+    patient_id: str
+    data: str
+    created_at: str
+    prediction: str
 
 @router.post("/facial/{patient_id}")
 def upload_image(patient_id: str, request: Request, image: UploadFile = File(...)):
@@ -179,7 +250,7 @@ async def upload_speech(patient_id: str, request: Request, audio: UploadFile = F
     mfcc_features = extract_mfcc_features(file_location)
     speech_prediction = audio_model.predict(mfcc_features)
 
-    prediction = "positive" if speech_prediction == 1 else "negative"
+    prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
     speech_data_record = SpeechDataRecordSchema(patient_id=patient_id, data=file_location,
                                                 created_at=str(datetime.now()), prediction=prediction)
     speech_record = SpeechRecord(patient_id=patient_id, data=file_location, created_at=datetime.now(),
@@ -249,3 +320,190 @@ async def predict(patient_id: str, data: dict, request: Request):
 
     return {"detail": "EEG data uploaded successfully", "prediction": pred, "patient": new_patient, "success": True}
 
+
+def process_video(file_bytes: bytes):
+    # Create a temporary file with .mp4 extension
+    temp_file = "temp_video.mp4"
+    try:
+        # Save bytes to temporary file
+        with open(temp_file, "wb") as f:
+            f.write(file_bytes)
+
+        # Read video using cv2.VideoCapture with explicit API preference
+        cap = cv2.VideoCapture(temp_file, cv2.CAP_ANY)
+        
+        if not cap.isOpened():
+            raise ValueError("Failed to open video file")
+
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_count <= 0:
+            raise ValueError("Empty or unreadable video")
+
+        logger.info(f"Original video has {frame_count} frames")
+            
+        # According to the error, SlowFast expects:
+        # - Slow pathway with 9 frames
+        # - Fast pathway with 33 frames (not 64)
+        slow_frame_count = 8  # Try with 8
+        alpha = 4  # Ratio between fast and slow
+        fast_frame_count = slow_frame_count * alpha  # Should be 32
+        
+        # Extract frames from the video
+        all_frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            # Convert grayscale to RGB if needed
+            if frame.ndim == 2:
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            elif frame.shape[2] == 1:
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            elif frame.shape[2] == 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
+            # Transform frame and append
+            all_frames.append(transform(frame))
+            
+        cap.release()
+        
+        logger.info(f"Extracted {len(all_frames)} frames from video")
+        
+        # If not enough frames, duplicate the last frame
+        if len(all_frames) < fast_frame_count:
+            last_frame = all_frames[-1] if all_frames else torch.zeros((3, *FRAME_SIZE))
+            while len(all_frames) < fast_frame_count:
+                all_frames.append(last_frame)
+        
+        # Ensure we have evenly spaced frames for both pathways
+        total_frames = len(all_frames)
+        indices_slow = np.linspace(0, total_frames - 1, slow_frame_count, dtype=int)
+        indices_fast = np.linspace(0, total_frames - 1, fast_frame_count, dtype=int)
+        
+        logger.info(f"Sampling {slow_frame_count} frames for slow pathway at indices: {indices_slow}")
+        logger.info(f"Sampling {fast_frame_count} frames for fast pathway at indices: {indices_fast}")
+        
+        # Sample frames for each pathway
+        slow_frames = [all_frames[i] for i in indices_slow]
+        fast_frames = [all_frames[i] for i in indices_fast]
+        
+        # Stack frames into tensors
+        slow_pathway = torch.stack(slow_frames).permute(1, 0, 2, 3).unsqueeze(0)  # [1, C, T, H, W]
+        fast_pathway = torch.stack(fast_frames).permute(1, 0, 2, 3).unsqueeze(0)  # [1, C, T*alpha, H, W]
+        
+        logger.info(f"Slow pathway shape: {slow_pathway.shape}")
+        logger.info(f"Fast pathway shape: {fast_pathway.shape}")
+        
+        # Let's try to match the exact tensor dimensions from error message
+        if slow_pathway.shape[2] != 8 or fast_pathway.shape[2] != 32:
+            logger.warning(f"Adjusting tensor dimensions to match expected values")
+            # If we don't have exactly the right number of frames, adjust by interpolation
+            if slow_pathway.shape[2] > 8:
+                # Downsample if we have too many frames
+                slow_indices = np.linspace(0, slow_pathway.shape[2]-1, 8, dtype=int)
+                slow_pathway = slow_pathway[:, :, slow_indices, :, :]
+            elif slow_pathway.shape[2] < 8:
+                # Repeat frames if we have too few
+                repeats = int(np.ceil(8 / slow_pathway.shape[2]))
+                slow_pathway = slow_pathway.repeat(1, 1, repeats, 1, 1)
+                slow_pathway = slow_pathway[:, :, :8, :, :]
+                
+            # Same for fast pathway
+            if fast_pathway.shape[2] > 32:
+                fast_indices = np.linspace(0, fast_pathway.shape[2]-1, 32, dtype=int)
+                fast_pathway = fast_pathway[:, :, fast_indices, :, :]
+            elif fast_pathway.shape[2] < 32:
+                repeats = int(np.ceil(32 / fast_pathway.shape[2]))
+                fast_pathway = fast_pathway.repeat(1, 1, repeats, 1, 1)
+                fast_pathway = fast_pathway[:, :, :32, :, :]
+        
+        logger.info(f"Final slow pathway shape: {slow_pathway.shape}")
+        logger.info(f"Final fast pathway shape: {fast_pathway.shape}")
+        
+        # Move tensors to the correct device
+        return [slow_pathway.to(device), fast_pathway.to(device)]
+
+    except Exception as e:
+        logger.error(f"Error processing video: {str(e)}")
+        raise
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception as e:
+                logger.error(f"Error removing temporary file: {str(e)}")
+
+@router.post('/video/{patient_id}', status_code=status.HTTP_200_OK)
+async def upload_video(patient_id: str, file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(('.mp4', '.avi', '.mov')):
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid file format. Please upload MP4, AVI, or MOV files only."
+        )
+
+    # Read file content
+    contents = await file.read()
+    
+    try:
+        # Check if model is ready
+        if not model:
+            raise ValueError("Video model is not loaded. Please try again later.")
+            
+        # Process video and get tensors for SlowFast model
+        pathway_tensors = process_video(contents)
+        
+        # Make prediction
+        with torch.no_grad():
+            with torch.autocast(device_type=device.type):
+                outputs = model(pathway_tensors)  # Pass the list of tensors directly
+                probs = torch.softmax(outputs, dim=1)
+                confidence, pred = torch.max(probs, dim=1)
+                label = "HL-ASD" if pred.item() == 1 else "Typical"
+                confidence = confidence.item()
+
+        # Save file
+        filename = f"{patient_id}_{file.filename}"
+        file_path = os.path.join(UPLOADS_DIR_VIDEO, filename)
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        # Create and save record
+        record = VideoRecord(
+            patient_id=patient_id,
+            data=file_path,
+            created_at=datetime.utcnow(),
+            prediction=label
+        )
+        record_id = record.save_video_record()
+        
+        if not record_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save video record"
+            )
+
+        return {
+            "success": True,
+            "file_location": file_path,
+            "prediction": label,
+            "confidence": confidence,
+            "detail": f"Video {filename} uploaded and processed successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Error processing video: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing video: {str(e)}"
+        )
+
+@router.get('/model/video/status', status_code=status.HTTP_200_OK)
+async def get_video_model_status(request: Request):
+    token = request.headers.get("access_token")
+    if not token or not verify_token(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if not model_status["is_ready"] and not model_status["is_loading"]:
+        await load_video_model()
+    return model_status
