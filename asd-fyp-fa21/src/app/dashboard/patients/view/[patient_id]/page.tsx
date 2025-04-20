@@ -77,9 +77,8 @@ interface FacialRecord {
 interface VideoRecord {
   id: string;
   data: string;
-  prediction: string;
+  prediction: "positive" | "negative" | "unknown";
   created_at: string;
-  confidence?: number;
 }
 
 interface MultimodalRecord {
@@ -418,7 +417,7 @@ export default function PatientInfo() {
 
     try {
       const formData = new FormData();
-      formData.append("file", videoFile);
+      formData.append("video", videoFile);
 
       const accessToken = localStorage.getItem("access_token");
       const response = await fetch(
@@ -442,9 +441,8 @@ export default function PatientInfo() {
         const newRecord: VideoRecord = {
           id: String(Date.now()),
           data: data.file_location,
-          prediction: data.prediction,
+          prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
-          confidence: data.confidence,
         };
 
         // Update patient's video records
@@ -459,16 +457,12 @@ export default function PatientInfo() {
         setShowVideoModal(false);
         setVideoFile(null);
         setVideoDragActive(false);
-        toast.success(data.detail || "Video record uploaded successfully");
+        toast.success("Video record uploaded successfully");
 
-        // Show prediction toast with confidence
-        const confidencePercent = (data.confidence * 100).toFixed(1);
-        toast.info(
-          `Prediction: ${data.prediction} (${confidencePercent}% confidence)`,
-          {
-            duration: 5000,
-          }
-        );
+        // Show prediction toast
+        toast.info(`ASD Prediction: ${data.prediction}`, {
+          duration: 5000,
+        });
       }
     } catch (error: any) {
       console.error("Error uploading video:", error);
@@ -691,11 +685,6 @@ export default function PatientInfo() {
         {
           header: "Prediction",
           accessor: (rec: VideoRecord) => rec.prediction || "unknown",
-        },
-        {
-          header: "Confidence",
-          accessor: (rec: VideoRecord) =>
-            rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "-",
         },
         {
           header: "Created At",
