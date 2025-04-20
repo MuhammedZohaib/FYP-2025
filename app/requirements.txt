@@ -22,3 +22,10 @@ python-dateutil
 beautifulsoup4==4.12.3
 requests==2.32.3
 semanticscholar==0.10.0
+torch>=2.0.0
+torchvision>=0.15.0
+pytorchvideo>=0.1.5
+av  # for video decoding
+tqdm  # for progress bars
+pillow>=9.0.0  # for image processing
+einops  # for tensor operations
