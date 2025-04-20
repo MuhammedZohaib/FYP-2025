@@ -620,6 +620,11 @@ export default function PatientInfo() {
           prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
           confidence: data.confidence || 0,
+          patient_id: patient_id
+            ? typeof patient_id === "string"
+              ? patient_id
+              : patient_id[0]
+            : "",
         };
 
         console.log("Created new speech record:", newRecord);
