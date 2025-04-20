@@ -1,4 +1,3 @@
-
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Request
 from jose import jwt
@@ -11,6 +10,7 @@ from keys import SECRET_KEY
 from models.mongodb.Doctor import Doctor
 from models.mongodb.EEGDataRecord import EEGDataRecord
 from models.mongodb.FacialDataRecord import FacialDataRecord
+from models.mongodb.VideoDataRecord import VideoRecord
 from models.mongodb.Patient import Patient
 from models.mongodb.SpeechDataRecord import SpeechRecord
 from pydantic_schemas.Patient import PatientSchema
@@ -130,27 +130,52 @@ def get_predictions(patient_id: str, request: Request):
 
     # Get EEG model predictions for the patient
     eeg_records = EEGDataRecord.find_by_patient_id(patient_id)
+    
+    # Get facial records
     facial_records = FacialDataRecord.find_by_patient_id(patient_id)
     facial_predictions = [
         {
             "id": str(record["_id"]),
-            "prediction": record["prediction"]  
+            "prediction": record["prediction"],
+            "data": record.get("data", ""),
+            "created_at": record.get("date", ""),
+            "confidence": record.get("confidence", 0)
         } for record in facial_records
     ]
     
+    # Get speech records
     speech_records = SpeechRecord.find_by_patient_id(patient_id)
     speech_predictions = [
         {
             "id": str(record["_id"]),
-            "prediction": record["prediction"]
+            "data": record.get("data", ""),
+            "prediction": record.get("prediction", "unknown"),
+            "created_at": record.get("created_at", "")
         } for record in speech_records
     ]
+    
+    # Get video records - fixed to properly format the data
+    video_records = VideoRecord.find_by_patient_id(patient_id)
+    logger.info(f"Retrieved {len(video_records) if video_records else 0} video records for patient {patient_id}")
+    
+    video_predictions = [
+        {
+            "id": str(record["_id"]),
+            "data": record.get("data", ""),
+            "prediction": record.get("prediction", "unknown"),
+            "created_at": record.get("created_at", ""),
+            "confidence": record.get("confidence", 0)
+        } for record in video_records
+    ]
+    
+    logger.info(f"Formatted {len(video_predictions)} video predictions")
 
     return {
         "detail": "Predictions retrieved successfully",
         "eeg_predictions": eeg_records,
-        # "facial_predictions": facial_predictions,
-        "speech_predictions": speech_records,
+        "facial_predictions": facial_predictions,
+        "speech_predictions": speech_predictions,
+        "video_predictions": video_predictions,
         "success": True
     }
 

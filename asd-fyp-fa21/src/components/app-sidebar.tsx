@@ -51,6 +51,7 @@ export function AppSidebar() {
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({
     patients: false,
     reports: false,
+    resources: false,
     settings: false,
   });
 
@@ -193,6 +194,43 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+
+              <Collapsible
+                open={openItems.settings}
+                onOpenChange={() => toggleItem("settings")}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton>
+                      <Settings className="h-6 w-6" />
+                      <span>Settings</span>
+                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild>
+                          <Link href="/settings/general">General</Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild>
+                          <Link href="/settings/security">Security</Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild>
+                          <Link href="/settings/notifications">
+                            Notifications
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -225,43 +263,6 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild>
                           <Link href="/reports/analytical">
                             Analytical Reports
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-
-              <Collapsible
-                open={openItems.settings}
-                onOpenChange={() => toggleItem("settings")}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                      <Settings className="h-6 w-6" />
-                      <span>Settings</span>
-                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/general">General</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/security">Security</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/notifications">
-                            Notifications
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

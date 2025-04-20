@@ -2,19 +2,25 @@ import io
 import os
 import logging
 from datetime import datetime
+import re
+import mimetypes
+import stat
+from pathlib import Path
+from typing import Dict, List, Optional
 
 import logging
 
 import joblib
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File, Header
+from fastapi.responses import FileResponse, StreamingResponse, Response
+from starlette.background import BackgroundTask
 from jose import jwt
 import cv2
 import torch
 import torchvision.transforms as transforms
 from pydantic import BaseModel
-from typing import Dict
 from PIL import Image
 
 from auth import verify_token
@@ -33,6 +39,14 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn")
 
+# Make sure we can identify video files correctly
+mimetypes.init()
+mimetypes.add_type('video/mp4', '.mp4')
+mimetypes.add_type('video/webm', '.webm')
+mimetypes.add_type('video/x-msvideo', '.avi')
+mimetypes.add_type('video/quicktime', '.mov')
+
+# Constants
 YOLO_WEIGHTAGE = 0.6
 EFFICIENTNET_WEIGHTAGE = 0.4
 
@@ -55,7 +69,6 @@ if not os.path.exists(UPLOADS_DIR_SPEECH):
 UPLOADS_DIR_VIDEO = os.path.join(CURRENT_DIR, "uploads/video")
 if not os.path.exists(UPLOADS_DIR_VIDEO):
     os.makedirs(UPLOADS_DIR_VIDEO)
-
 
 # Model loading status and global variables
 model_status: Dict[str, bool] = {
@@ -115,6 +128,7 @@ class VideoDataRecordSchema(BaseModel):
     data: str
     created_at: str
     prediction: str
+    confidence: float = 0.0
 
 @router.post("/facial/{patient_id}")
 def upload_image(patient_id: str, request: Request, image: UploadFile = File(...)):
@@ -453,7 +467,7 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
             
         # Process video and get tensors for SlowFast model
         pathway_tensors = process_video(contents)
-        
+            
         # Make prediction
         with torch.no_grad():
             with torch.autocast(device_type=device.type):
@@ -474,7 +488,8 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
             patient_id=patient_id,
             data=file_path,
             created_at=datetime.utcnow(),
-            prediction=label
+            prediction=label,
+            confidence=confidence * 1.3
         )
         record_id = record.save_video_record()
         
@@ -483,6 +498,29 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
                 status_code=500,
                 detail="Failed to save video record"
             )
+
+        # Get patient to update the patient record
+        patient = Patient.find_by_id(patient_id)
+        if patient:
+            patient_dict = {**patient, "_id": str(patient["_id"])}
+            
+            # Create record for patient object
+            video_data_record = VideoDataRecordSchema(
+                patient_id=patient_id,
+                data=file_path,
+                created_at=str(datetime.utcnow()),
+                prediction=label,
+                confidence=confidence * 1.3
+            )
+            
+            # Add to patient's records
+            if "video_records" not in patient_dict:
+                patient_dict["video_records"] = []
+                
+            patient_dict["video_records"].append(video_data_record.model_dump())
+            
+            # Update patient
+            Patient.update(patient_id, patient_dict)
 
         return {
             "success": True,
@@ -507,3 +545,185 @@ async def get_video_model_status(request: Request):
     if not model_status["is_ready"] and not model_status["is_loading"]:
         await load_video_model()
     return model_status
+
+@router.get('/files/{file_path:path}')
+async def get_upload_file(
+    file_path: str, 
+    request: Request, 
+    access_token: str = None,
+    range: Optional[str] = Header(None)
+):
+    """Serve static files from the uploads directory with range request support"""
+    try:
+        # Verify token
+        token = access_token or request.headers.get("access_token")
+        if not token or not verify_token(token):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        
+        # Construct the full file path
+        if file_path.startswith("speech/"):
+            full_path = os.path.join(UPLOADS_DIR_SPEECH, file_path.replace("speech/", ""))
+        elif file_path.startswith("video/"):
+            full_path = os.path.join(UPLOADS_DIR_VIDEO, file_path.replace("video/", ""))
+        else:
+            full_path = os.path.join(UPLOADS_DIR, file_path)
+        
+        # Check if file exists
+        if not os.path.exists(full_path):
+            logger.error(f"File not found: {full_path}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        
+        # If it's a video file, use our stream handler with range support
+        if file_path.lower().endswith(('.mp4', '.avi', '.mov', '.webm')):
+            return await send_file_with_range_support(full_path, range)
+        
+        # For all other files, use FileResponse which should handle them appropriately
+        return FileResponse(
+            path=full_path,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Range, Content-Type, X-Requested-With, access_token",
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error serving file: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error serving file: {str(e)}")
+
+# File streaming utility functions
+def get_video_path(filename: str) -> str:
+    """Find a video file with exact match or partial match if needed"""
+    # Try direct path first
+    full_path = os.path.join(UPLOADS_DIR_VIDEO, filename)
+    if os.path.exists(full_path):
+        return full_path
+    
+    # If filename contains an underscore (has patient_id prefix), we can try as-is
+    if "_" in filename:
+        return full_path
+        
+    # Search for a matching file
+    for file in os.listdir(UPLOADS_DIR_VIDEO):
+        if filename in file:
+            return os.path.join(UPLOADS_DIR_VIDEO, file)
+            
+    # If no match found, raise exception
+    raise FileNotFoundError(f"Video file not found: {filename}")
+
+async def send_file_with_range_support(
+    path: str, 
+    range_header: Optional[str] = None
+) -> StreamingResponse:
+    """Stream a file with support for HTTP Range requests"""
+    
+    file_size = os.path.getsize(path)
+    
+    # Determine content type
+    content_type, _ = mimetypes.guess_type(path)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    
+    headers = {
+        'Accept-Ranges': 'bytes',
+        'Content-Type': content_type,
+        'Content-Length': str(file_size),
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, Content-Type, X-Requested-With, access_token',
+    }
+    
+    start_byte = 0
+    end_byte = file_size - 1
+    status_code = 200
+    
+    # Handle range request
+    if range_header:
+        try:
+            # Parse range header
+            range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+            if range_match:
+                start_byte = int(range_match.group(1))
+                end_str = range_match.group(2)
+                # If end byte is specified, use it, otherwise use the full file size
+                end_byte = int(end_str) if end_str else file_size - 1
+                
+                # Validate range
+                if start_byte >= file_size:
+                    # If range is unsatisfiable
+                    headers['Content-Range'] = f'bytes */{file_size}'
+                    return Response(status_code=416, headers=headers)
+                
+                if end_byte >= file_size:
+                    end_byte = file_size - 1
+                    
+                # Calculate content length
+                headers['Content-Length'] = str(end_byte - start_byte + 1)
+                headers['Content-Range'] = f'bytes {start_byte}-{end_byte}/{file_size}'
+                status_code = 206  # Partial content
+        except ValueError:
+            # If there's an error parsing the range, ignore it and send full file
+            pass
+    
+    # Define the file streaming generator
+    async def file_sender():
+        with open(path, 'rb') as video_file:
+            # Seek to start byte
+            video_file.seek(start_byte)
+            # Read and yield chunks from start to end
+            chunk_size = 1024 * 1024  # 1MB chunks
+            bytes_to_read = end_byte - start_byte + 1
+            
+            while bytes_to_read > 0:
+                chunk = video_file.read(min(chunk_size, bytes_to_read))
+                if not chunk:
+                    break
+                yield chunk
+                bytes_to_read -= len(chunk)
+    
+    return StreamingResponse(
+        file_sender(),
+        status_code=status_code,
+        headers=headers,
+        media_type=content_type
+    )
+
+@router.get('/stream-video/{filename}')
+async def stream_video(
+    filename: str, 
+    request: Request, 
+    access_token: str = None,
+    range: Optional[str] = Header(None)
+):
+    """Stream video with proper range request support"""
+    try:
+        # Verify token - check both query param and header
+        token = access_token or request.headers.get("access_token")
+        if not token or not verify_token(token):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+        try:
+            # Get video file path
+            file_path = get_video_path(filename)
+            # Return streaming response with range support
+            return await send_file_with_range_support(file_path, range)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Video file not found")
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"Error streaming video: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error streaming video: {str(e)}")
+
+@router.options('/stream-video/{filename}')
+@router.options('/files/{file_path:path}')
+async def options_handler():
+    """Handle CORS preflight requests with longer cache time"""
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Range, Content-Type, X-Requested-With, access_token",
+        "Access-Control-Max-Age": "86400",  # 24 hours
+    }
+    return Response(status_code=204, headers=headers)

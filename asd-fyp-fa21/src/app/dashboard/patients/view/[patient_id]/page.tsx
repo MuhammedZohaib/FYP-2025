@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, JSX } from "react";
+import { useState, useEffect, useRef, JSX, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,6 +15,9 @@ import {
   User,
   X,
   Upload,
+  Eye,
+  Play,
+  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +29,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
+import React from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Patient {
   _id: string;
@@ -57,8 +62,8 @@ interface SpeechRecord {
   patient_id: string;
   data: string;
   prediction: "HL-ASD" | "Typical";
-  confidence?: number;
   created_at: string;
+  confidence?: number;
 }
 
 interface EEGRecord {
@@ -100,46 +105,269 @@ interface TableColumn<T> {
   accessor: (item: T, index?: number) => string;
 }
 
-const AudioPlayerComponent = ({
-  src,
-  fallbackSrc,
-}: {
-  src: string;
-  fallbackSrc: string;
-}) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [error, setError] = useState(false);
+// Helper function to extract filename from path
+const extractFilename = (path: string | undefined): string => {
+  if (!path) {
+    return "";
+  }
 
-  const handleError = () => {
-    console.error("Audio playback error with source:", src);
-    setError(true);
-  };
+  console.log("Extracting filename from path:", path);
 
-  return (
-    <div className="w-full">
-      <audio
-        ref={audioRef}
-        className="w-full"
-        controls
-        onError={handleError}
-        src={error ? fallbackSrc : src}
-      >
-        Your browser does not support the audio element.
-      </audio>
-      {error && (
-        <p className="text-red-500 text-sm mt-1">
-          Error loading audio. Using fallback.
-        </p>
-      )}
-    </div>
-  );
+  // Handle different path formats
+  if (path.includes("uploads/speech/")) {
+    return path.split("uploads/speech/").pop() || "";
+  } else if (path.includes("uploads/video/")) {
+    return path.split("uploads/video/").pop() || "";
+  } else if (path.includes("/")) {
+    return path.split("/").pop() || "";
+  }
+
+  // If no slashes, assume it's already just the filename
+  return path;
 };
 
-function extractFilename(path: string): string {
-  if (!path) return "";
-  const parts = path.split("/");
-  return parts[parts.length - 1];
-}
+// Video Player Component with improved format compatibility
+const VideoPlayer = React.memo(
+  ({
+    src,
+    poster,
+    onError,
+  }: {
+    src: string;
+    poster?: string;
+    onError?: (error: string) => void;
+  }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { token } = useAuth();
+
+    const getVideoUrl = (videoPath: string) => {
+      // If the path is already a full URL, append the token
+      if (videoPath.startsWith("http")) {
+        const url = new URL(videoPath);
+        if (token) {
+          url.searchParams.append("token", token);
+        }
+        return url.toString();
+      }
+
+      // Otherwise, construct the URL with the API endpoint
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const url = new URL(`${baseUrl}/api/files/${videoPath}`);
+
+      if (token) {
+        url.searchParams.append("token", token);
+      }
+
+      // Add the access_token as a query parameter
+      const accessToken = localStorage.getItem("access_token");
+      if (accessToken) {
+        url.searchParams.append("access_token", accessToken);
+      }
+
+      console.log("Generated video URL:", url.toString());
+      return url.toString();
+    };
+
+    const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+      const videoElement = e.currentTarget;
+      const errorMessage = videoElement.error
+        ? `Video error: ${videoElement.error.message} (code: ${videoElement.error.code})`
+        : "Unknown video playback error";
+
+      console.error("Video playback error:", {
+        error: videoElement.error,
+        src: videoElement.src,
+        readyState: videoElement.readyState,
+      });
+
+      setError(errorMessage);
+      setLoading(false);
+
+      if (onError) {
+        onError(errorMessage);
+      }
+    };
+
+    const handleLoadedData = () => {
+      setLoading(false);
+      setError(null);
+    };
+
+    useEffect(() => {
+      // Reset states when source changes
+      setLoading(true);
+      setError(null);
+    }, [src]);
+
+    return (
+      <div className="video-player-container relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
+            <div className="text-red-500 text-center mb-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-10 w-10 mx-auto mb-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {error}
+            </div>
+            <div className="text-sm text-gray-500">Source: {src}</div>
+          </div>
+        )}
+
+        <video
+          ref={videoRef}
+          className="w-full h-auto"
+          controls
+          src={getVideoUrl(src)}
+          poster={poster}
+          onLoadedData={handleLoadedData}
+          onError={handleError}
+        />
+      </div>
+    );
+  }
+);
+
+VideoPlayer.displayName = "VideoPlayer";
+
+// Audio Player Component with fallbacks
+const AudioPlayer = React.memo(
+  ({ src, onError }: { src: string; onError?: (error: string) => void }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { token } = useAuth();
+
+    const getAudioUrl = (audioPath: string) => {
+      // If the path is already a full URL, append the token
+      if (audioPath.startsWith("http")) {
+        const url = new URL(audioPath);
+        if (token) {
+          url.searchParams.append("token", token);
+        }
+        return url.toString();
+      }
+
+      // Otherwise, construct the URL with the API endpoint
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+      // Add access_token as a query parameter for authentication
+      const accessToken = localStorage.getItem("access_token");
+
+      // Ensure we're using the API path format /api/files/...
+      const apiPath = `files/${audioPath}`;
+
+      const url = new URL(`${baseUrl}/api/${apiPath}`);
+      if (token) {
+        url.searchParams.append("token", token);
+      }
+      if (accessToken) {
+        url.searchParams.append("access_token", accessToken);
+      }
+
+      console.log("Generated audio URL:", url.toString());
+      return url.toString();
+    };
+
+    const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+      const audioElement = e.currentTarget;
+      const errorMessage = audioElement.error
+        ? `Audio error: ${audioElement.error.message} (code: ${audioElement.error.code})`
+        : "Unknown audio playback error";
+
+      console.error("Audio playback error:", {
+        error: audioElement.error,
+        src: audioElement.src,
+        readyState: audioElement.readyState,
+      });
+
+      setError(errorMessage);
+      setLoading(false);
+
+      if (onError) {
+        onError(errorMessage);
+      }
+    };
+
+    const handleLoadedData = () => {
+      setLoading(false);
+      setError(null);
+    };
+
+    useEffect(() => {
+      // Reset states when source changes
+      setLoading(true);
+      setError(null);
+    }, [src]);
+
+    return (
+      <div className="audio-player-container relative">
+        {loading && (
+          <div className="flex items-center justify-center h-16 bg-gray-100 bg-opacity-50 rounded">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex flex-col items-center justify-center bg-gray-100 p-4 rounded">
+            <div className="text-red-500 text-center mb-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 mx-auto mb-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {error}
+            </div>
+            <div className="text-sm text-gray-500">Source: {src}</div>
+          </div>
+        )}
+
+        {!error && (
+          <audio
+            ref={audioRef}
+            className="w-full"
+            controls
+            src={getAudioUrl(src)}
+            onLoadedData={handleLoadedData}
+            onError={handleError}
+            style={{ display: "block", width: "100%", minHeight: "40px" }}
+          />
+        )}
+      </div>
+    );
+  }
+);
+
+AudioPlayer.displayName = "AudioPlayer";
 
 export default function PatientInfo() {
   const { patient_id } = useParams();
@@ -178,6 +406,13 @@ export default function PatientInfo() {
 
   const [selectedSpeechRecord, setSelectedSpeechRecord] =
     useState<SpeechRecord | null>(null);
+  const [showSpeechPlayerModal, setShowSpeechPlayerModal] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [selectedVideoRecord, setSelectedVideoRecord] =
+    useState<VideoRecord | null>(null);
+  const [showVideoPlayerModal, setShowVideoPlayerModal] = useState(false);
 
   const router = useRouter();
 
@@ -254,6 +489,29 @@ export default function PatientInfo() {
         const speechPredictions = Array.isArray(data.speech_predictions)
           ? data.speech_predictions
           : [];
+        const videoPredictions = Array.isArray(data.video_predictions)
+          ? data.video_predictions
+          : [];
+
+        console.log("Video predictions:", videoPredictions);
+
+        // Format video records for the state
+        const formattedVideoRecords = videoPredictions.map((record: any) => ({
+          id: record.id || String(Date.now()),
+          data: record.data || "",
+          prediction: record.prediction || "unknown",
+          created_at: record.created_at || new Date().toISOString(),
+          confidence: record.confidence || 0,
+        }));
+
+        // Update patient state with video records
+        setPatient((prevPatient) => {
+          if (!prevPatient) return prevPatient;
+          return {
+            ...prevPatient,
+            video_records: formattedVideoRecords,
+          };
+        });
 
         setPredictions({
           eeg_data_records: eegPredictions.map((record: any) => ({
@@ -271,6 +529,7 @@ export default function PatientInfo() {
             data: record.data || "",
             prediction: record.prediction || "unknown",
             created_at: record.created_at || new Date().toISOString(),
+            confidence: record.confidence || 0,
           })),
         });
       } catch (error) {
@@ -360,8 +619,10 @@ export default function PatientInfo() {
           data: data.file_location,
           prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
-          patient_id: String(patient_id),
+          confidence: data.confidence || 0,
         };
+
+        console.log("Created new speech record:", newRecord);
 
         setPredictions((prev) => ({
           ...prev,
@@ -509,7 +770,11 @@ export default function PatientInfo() {
         toast.success(data.detail || "Video record uploaded successfully");
 
         // Show prediction toast with confidence
-        const confidencePercent = (data.confidence * 100).toFixed(1);
+        const confidencePercent =
+          data.confidence !== undefined
+            ? (data.confidence * 100).toFixed(1)
+            : "N/A";
+
         toast.info(
           `Prediction: ${data.prediction} (${confidencePercent}% confidence)`,
           {
@@ -593,6 +858,37 @@ export default function PatientInfo() {
       checkModelStatus();
     }
   }, [activeTab]);
+
+  // Toggle play/pause for audio
+  const toggleAudioPlayback = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Handle audio ended event
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+  };
+
+  // Open speech player modal
+  const openSpeechPlayer = (record: SpeechRecord) => {
+    setSelectedSpeechRecord(record);
+    setShowSpeechPlayerModal(true);
+    setIsPlaying(false);
+    console.log("Opening speech player for record:", record);
+  };
+
+  // Open video player modal
+  const openVideoPlayer = (record: VideoRecord) => {
+    setSelectedVideoRecord(record);
+    setShowVideoPlayerModal(true);
+  };
 
   if (loading) {
     return (
@@ -714,6 +1010,21 @@ export default function PatientInfo() {
         accessor: (rec: SpeechRecord) =>
           new Date(rec.created_at).toDateString(),
       },
+      {
+        header: "Actions",
+        accessor: (rec: SpeechRecord) => {
+          return (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+              onClick={() => openSpeechPlayer(rec)}
+            >
+              <Eye size={18} />
+            </Button>
+          );
+        },
+      },
     ] as TableColumn<SpeechRecord>[]);
   };
 
@@ -742,12 +1053,29 @@ export default function PatientInfo() {
         {
           header: "Confidence",
           accessor: (rec: VideoRecord) =>
-            rec.confidence ? `${(rec.confidence * 100).toFixed(1)}%` : "-",
+            rec.confidence !== undefined
+              ? `${(rec.confidence * 100).toFixed(1)}%`
+              : "-",
         },
         {
           header: "Created At",
           accessor: (rec: VideoRecord) =>
             new Date(rec.created_at).toLocaleString(),
+        },
+        {
+          header: "Actions",
+          accessor: (rec: VideoRecord) => {
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                onClick={() => openVideoPlayer(rec)}
+              >
+                <Eye size={18} />
+              </Button>
+            );
+          },
         },
       ] as TableColumn<VideoRecord>[]
     );
@@ -1154,46 +1482,61 @@ export default function PatientInfo() {
       )}
 
       {/* Speech Modal */}
-      {showSpeechModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+      {showSpeechModal && selectedSpeechRecord && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Speech Record Details</h2>
-              <button
-                onClick={() => setShowSpeechModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+              <h3 className="text-xl font-semibold">Speech Record Details</h3>
+              <Button
+                onClick={() => {
+                  setShowSpeechModal(false);
+                  setSelectedSpeechRecord(null);
+                }}
+                className="p-1 hover:bg-gray-200 rounded"
               >
-                <X size={20} />
-              </button>
+                <X size={24} />
+              </Button>
             </div>
+
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-500">
-                  Created on:{" "}
-                  {selectedSpeechRecord?.created_at
-                    ? new Date(selectedSpeechRecord.created_at).toLocaleString()
-                    : ""}
+                <h4 className="font-medium">Created At</h4>
+                <p>
+                  {new Date(selectedSpeechRecord.created_at).toLocaleString()}
                 </p>
-                <p className="font-medium">
-                  Prediction: {selectedSpeechRecord?.prediction}
-                </p>
-                {selectedSpeechRecord?.confidence !== undefined && (
-                  <p className="text-sm">
-                    Confidence:{" "}
-                    {(selectedSpeechRecord.confidence * 100).toFixed(2)}%
-                  </p>
-                )}
               </div>
-              <div className="mt-4">
-                <h3 className="text-md font-medium mb-2">Audio Playback</h3>
-                <AudioPlayerComponent
-                  src={`${
-                    process.env.NEXT_PUBLIC_API_URL
-                  }/api/files/${extractFilename(
-                    selectedSpeechRecord?.data || ""
-                  )}`}
-                  fallbackSrc={`${process.env.NEXT_PUBLIC_API_URL}/api/files/fallback-audio.mp3`}
-                />
+
+              <div>
+                <h4 className="font-medium">Prediction</h4>
+                <div className="mt-1 flex items-center">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedSpeechRecord.prediction === "HL-ASD"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {selectedSpeechRecord.prediction}
+                  </span>
+                  {selectedSpeechRecord.confidence !== undefined && (
+                    <span className="ml-3 text-gray-500">
+                      Confidence:{" "}
+                      {(selectedSpeechRecord.confidence * 100).toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Audio</h4>
+                <div className="bg-gray-100 p-3 rounded">
+                  <AudioPlayer
+                    src={selectedSpeechRecord.data}
+                    onError={(errorMsg) =>
+                      console.error("Speech audio error:", errorMsg)
+                    }
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1329,6 +1672,130 @@ export default function PatientInfo() {
                   )}
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Speech Player Modal */}
+      {showSpeechPlayerModal && selectedSpeechRecord && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Speech Record Player</h2>
+                <button
+                  onClick={() => {
+                    setShowSpeechPlayerModal(false);
+                    setIsPlaying(false);
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                    }
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-gray-400 mb-2">Filename:</p>
+                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                  {selectedSpeechRecord.data &&
+                    selectedSpeechRecord.data.split("/").pop()}
+                </p>
+              </div>
+
+              {/* Display audio path */}
+              <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]">
+                <p className="text-gray-400 text-sm mb-1">File path:</p>
+                <code className="text-xs text-gray-300">
+                  {selectedSpeechRecord.data}
+                </code>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-gray-400 mb-2">Prediction:</p>
+                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                  {selectedSpeechRecord.prediction || "Unknown"}
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-400 mb-2">Created At:</p>
+                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                  {new Date(selectedSpeechRecord.created_at).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="flex justify-center mb-4">
+                <div className="w-full bg-[#1a1a1a] p-3 rounded">
+                  <AudioPlayer
+                    src={selectedSpeechRecord.data}
+                    onError={() => {}}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Video Player Modal */}
+      {showVideoPlayerModal && selectedVideoRecord && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-4xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Video Record Player</h2>
+                <button
+                  onClick={() => setShowVideoPlayerModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <VideoPlayer
+                  src={selectedVideoRecord.data}
+                  poster={selectedVideoRecord.data}
+                  onError={() => {}}
+                />
+              </div>
+
+              {/* Display video info */}
+              <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]">
+                <p className="text-gray-400 text-sm mb-1">File path:</p>
+                <code className="text-xs text-gray-300">
+                  {selectedVideoRecord.data}
+                </code>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-2">
+                <div>
+                  <p className="text-gray-400 mb-1">Prediction:</p>
+                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                    {selectedVideoRecord.prediction || "Unknown"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-400 mb-1">Confidence:</p>
+                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                    {selectedVideoRecord.confidence !== undefined
+                      ? `${(selectedVideoRecord.confidence * 100).toFixed(1)}%`
+                      : "Unknown"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-400 mb-1">Created At:</p>
+                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                  {new Date(selectedVideoRecord.created_at).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
         </div>
