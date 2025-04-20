@@ -53,9 +53,11 @@ interface Patient {
 }
 
 interface SpeechRecord {
-  id: string;
+  _id: string;
+  patient_id: string;
   data: string;
-  prediction: "positive" | "negative" | "unknown";
+  prediction: "HL-ASD" | "Typical";
+  confidence?: number;
   created_at: string;
 }
 
@@ -98,6 +100,47 @@ interface TableColumn<T> {
   accessor: (item: T, index?: number) => string;
 }
 
+const AudioPlayerComponent = ({
+  src,
+  fallbackSrc,
+}: {
+  src: string;
+  fallbackSrc: string;
+}) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [error, setError] = useState(false);
+
+  const handleError = () => {
+    console.error("Audio playback error with source:", src);
+    setError(true);
+  };
+
+  return (
+    <div className="w-full">
+      <audio
+        ref={audioRef}
+        className="w-full"
+        controls
+        onError={handleError}
+        src={error ? fallbackSrc : src}
+      >
+        Your browser does not support the audio element.
+      </audio>
+      {error && (
+        <p className="text-red-500 text-sm mt-1">
+          Error loading audio. Using fallback.
+        </p>
+      )}
+    </div>
+  );
+};
+
+function extractFilename(path: string): string {
+  if (!path) return "";
+  const parts = path.split("/");
+  return parts[parts.length - 1];
+}
+
 export default function PatientInfo() {
   const { patient_id } = useParams();
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -132,6 +175,9 @@ export default function PatientInfo() {
     null
   );
   const [isModelReady, setIsModelReady] = useState(false);
+
+  const [selectedSpeechRecord, setSelectedSpeechRecord] =
+    useState<SpeechRecord | null>(null);
 
   const router = useRouter();
 
@@ -310,10 +356,11 @@ export default function PatientInfo() {
 
       if (data.success) {
         const newRecord: SpeechRecord = {
-          id: String(Date.now()),
+          _id: String(Date.now()),
           data: data.file_location,
           prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
+          patient_id: String(patient_id),
         };
 
         setPredictions((prev) => ({
@@ -704,6 +751,11 @@ export default function PatientInfo() {
         },
       ] as TableColumn<VideoRecord>[]
     );
+  };
+
+  const openSpeechModal = (record: SpeechRecord) => {
+    setSelectedSpeechRecord(record);
+    setShowSpeechModal(true);
   };
 
   return (
@@ -1101,78 +1153,48 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Speech Upload Modal */}
+      {/* Speech Modal */}
       {showSpeechModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">Upload Speech Record</h2>
-                <button
-                  onClick={() => {
-                    setShowSpeechModal(false);
-                    setUploadFile(null);
-                    setUploadError(null);
-                  }}
-                  className="text-gray-400 hover:text-white"
-                >
-                  ×
-                </button>
-              </div>
-
-              {uploadError && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
-                  {uploadError}
-                </div>
-              )}
-
-              <div
-                className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
-                  dragActive
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-700"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Speech Record Details</h2>
+              <button
+                onClick={() => setShowSpeechModal(false)}
+                className="text-gray-500 hover:text-gray-700"
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <Upload className="w-12 h-12 mb-4 text-gray-500" />
-                <p className="text-lg font-semibold text-gray-400">
-                  {uploadFile ? uploadFile.name : "Drag and Drop audio file"}
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">
+                  Created on:{" "}
+                  {selectedSpeechRecord?.created_at
+                    ? new Date(selectedSpeechRecord.created_at).toLocaleString()
+                    : ""}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Click to browse or drag and drop
+                <p className="font-medium">
+                  Prediction: {selectedSpeechRecord?.prediction}
                 </p>
+                {selectedSpeechRecord?.confidence !== undefined && (
+                  <p className="text-sm">
+                    Confidence:{" "}
+                    {(selectedSpeechRecord.confidence * 100).toFixed(2)}%
+                  </p>
+                )}
               </div>
-
-              {uploadFile && (
-                <Button
-                  className="w-full mt-4 bg-green-500 hover:bg-green-600 relative"
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                      Uploading...
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="mr-2" size={16} />
-                      Upload File
-                    </>
-                  )}
-                </Button>
-              )}
+              <div className="mt-4">
+                <h3 className="text-md font-medium mb-2">Audio Playback</h3>
+                <AudioPlayerComponent
+                  src={`${
+                    process.env.NEXT_PUBLIC_API_URL
+                  }/api/files/${extractFilename(
+                    selectedSpeechRecord?.data || ""
+                  )}`}
+                  fallbackSrc={`${process.env.NEXT_PUBLIC_API_URL}/api/files/fallback-audio.mp3`}
+                />
+              </div>
             </div>
           </div>
         </div>

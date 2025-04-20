@@ -12,3 +12,6 @@ class DatabaseConnector:
 
 
 db = DatabaseConnector(MONGO_URI, DB_NAME)
+
+def get_db():
+    return db.db

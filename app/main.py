@@ -15,6 +15,15 @@ from models.mongodb.Patient import Patient
 from pydantic_schemas.Email import EmailSchema
 from routes import router as api_router
 
+# Import settings routes
+from routes.settings_routes import (
+    accessibility_router, 
+    notifications_router, 
+    security_router,
+    validate_csrf_token,
+    rate_limit_auth_endpoints
+)
+
 cloudinary.config(
     cloud_name="df07a9xfz",
     api_key="974667289268378",
@@ -36,6 +45,15 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+
+# Include the settings routers
+app.include_router(accessibility_router)
+app.include_router(notifications_router)
+app.include_router(security_router)
+
+# Add middleware for settings security
+app.middleware("http")(validate_csrf_token)
+app.middleware("http")(rate_limit_auth_endpoints)
 
 conf = ConnectionConfig(
     MAIL_USERNAME="ar5414929@gmail.com",
