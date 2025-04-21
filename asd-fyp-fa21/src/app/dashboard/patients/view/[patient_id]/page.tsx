@@ -375,6 +375,394 @@ const AudioPlayer = React.memo(
 
 AudioPlayer.displayName = "AudioPlayer";
 
+interface EditProfileFormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  dob: string;
+  gender: "male" | "female";
+  born_country: string;
+  born_city: string;
+  father_name: string;
+  father_cnic: string;
+  mother_name: string;
+  mother_cnic: string;
+  other_info?: string;
+}
+
+// Add EditProfile component
+const EditProfile = ({
+  patient,
+  onClose,
+  onUpdate,
+}: {
+  patient: Patient;
+  onClose: () => void;
+  onUpdate: (updatedPatient: Patient) => void;
+}) => {
+  const [formData, setFormData] = useState<EditProfileFormData>({
+    name: patient.name,
+    email: patient.email,
+    phone: patient.phone,
+    address: patient.address,
+    dob: patient.dob,
+    gender: patient.gender,
+    born_country: patient.born_country,
+    born_city: patient.born_city,
+    father_name: patient.father_name,
+    father_cnic: patient.father_cnic,
+    mother_name: patient.mother_name,
+    mother_cnic: patient.mother_cnic,
+    other_info: patient.other_info,
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        throw new Error("No access token found");
+      }
+
+      // Only send the fields that are allowed to be updated
+      const updateData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        dob: formData.dob,
+        gender: formData.gender,
+        born_country: formData.born_country,
+        born_city: formData.born_city,
+        father_name: formData.father_name,
+        father_cnic: formData.father_cnic,
+        mother_name: formData.mother_name,
+        mother_cnic: formData.mother_cnic,
+        other_info: formData.other_info,
+      };
+
+      const response = await fetch(
+        `http://localhost:8000/api/patient/${patient._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: accessToken,
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to update patient");
+      }
+
+      toast.success("Patient profile updated successfully");
+      onUpdate(data.patient);
+      onClose();
+    } catch (error: any) {
+      console.error("Error updating patient:", error);
+      setError(error.message || "Failed to update patient");
+      toast.error(error.message || "Failed to update patient");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">Edit Patient Profile</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium mb-4">
+                  Personal Information
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, dob: e.target.value }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        gender: e.target.value as "male" | "female",
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium mb-4">
+                  Additional Information
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Country of Birth
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.born_country}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        born_country: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    City of Birth
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.born_city}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        born_city: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Father's Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.father_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        father_name: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Father's CNIC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.father_cnic}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        father_cnic: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Mother's Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.mother_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        mother_name: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Mother's CNIC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.mother_cnic}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        mother_cnic: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Other Information */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Other Information
+              </label>
+              <textarea
+                value={formData.other_info || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    other_info: e.target.value,
+                  }))
+                }
+                className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2 h-24"
+              />
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="border-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Updating...
+                  </div>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function PatientInfo() {
   const { patient_id } = useParams();
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -444,6 +832,9 @@ export default function PatientInfo() {
   const multimodalFileInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
+
+  // Add state for edit modal in the main component
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     async function fetchPatient() {
@@ -1190,6 +1581,11 @@ export default function PatientInfo() {
     }
   };
 
+  // Update the edit profile button click handler
+  const handleEditProfile = () => {
+    setShowEditModal(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] text-white p-8">
@@ -1462,7 +1858,10 @@ export default function PatientInfo() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1 bg-white text-black hover:bg-gray-200">
+                  <Button
+                    className="flex-1 bg-white text-black hover:bg-gray-200"
+                    onClick={handleEditProfile}
+                  >
                     <Pencil size={16} className="mr-2" />
                     Edit Profile
                   </Button>
@@ -2225,6 +2624,14 @@ export default function PatientInfo() {
             </div>
           </div>
         </div>
+      )}
+
+      {showEditModal && (
+        <EditProfile
+          patient={patient}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={(updatedPatient) => setPatient(updatedPatient)}
+        />
       )}
     </div>
   );
