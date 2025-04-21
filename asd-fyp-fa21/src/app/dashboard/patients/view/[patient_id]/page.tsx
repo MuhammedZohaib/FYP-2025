@@ -77,8 +77,10 @@ interface EEGRecord {
 
 interface FacialRecord {
   id: string;
-  info?: string;
+  data?: string;
   created_at: string;
+  prediction?: string;
+  confidence?: number;
 }
 
 interface VideoRecord {
@@ -515,11 +517,14 @@ export default function PatientInfo() {
         const videoPredictions = Array.isArray(data.video_predictions)
           ? data.video_predictions
           : [];
+        const facialPredictions = Array.isArray(data.facial_predictions)
+          ? data.facial_predictions
+          : [];
 
-        console.log("Video predictions:", videoPredictions);
+        console.log("Facial predictions:", facialPredictions);
 
-        // Format video records for the state
-        const formattedVideoRecords = videoPredictions.map((record: any) => ({
+        // Format facial records for the state
+        const formattedFacialRecords = facialPredictions.map((record: any) => ({
           id: record.id || String(Date.now()),
           data: record.data || "",
           prediction: record.prediction || "unknown",
@@ -527,12 +532,12 @@ export default function PatientInfo() {
           confidence: record.confidence || 0,
         }));
 
-        // Update patient state with video records
+        // Update patient state with facial records
         setPatient((prevPatient) => {
           if (!prevPatient) return prevPatient;
           return {
             ...prevPatient,
-            video_records: formattedVideoRecords,
+            facial_data_records: formattedFacialRecords,
           };
         });
 
@@ -986,10 +991,36 @@ export default function PatientInfo() {
       }
 
       if (data.success) {
+        // Get inference from the predictions endpoint
+        const inferenceResponse = await fetch(
+          `http://localhost:8000/api/patient/${patient_id}/predictions`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              access_token: accessToken || "",
+            },
+          }
+        );
+
+        const inferenceData = await inferenceResponse.json();
+
+        if (!inferenceResponse.ok) {
+          throw new Error("Failed to get facial inference");
+        }
+
+        // Get the latest facial prediction from the predictions response
+        const latestFacialPrediction =
+          inferenceData.facial_predictions?.[
+            inferenceData.facial_predictions.length - 1
+          ];
+
         const newRecord: FacialRecord = {
           id: String(Date.now()),
-          info: data.file_location,
+          data: data.data,
           created_at: new Date().toISOString(),
+          prediction: latestFacialPrediction?.prediction || data.prediction,
+          confidence: latestFacialPrediction?.confidence || data.confidence,
         };
 
         setPatient((prev) => {
@@ -1007,6 +1038,21 @@ export default function PatientInfo() {
         setFacialFile(null);
         setFacialDragActive(false);
         toast.success("Facial record uploaded successfully");
+
+        // Show prediction toast with confidence
+        if (latestFacialPrediction) {
+          const confidencePercent =
+            latestFacialPrediction.confidence !== undefined
+              ? (latestFacialPrediction.confidence * 100).toFixed(1)
+              : "N/A";
+
+          toast.info(
+            `Prediction: ${latestFacialPrediction.prediction} (${confidencePercent}% confidence)`,
+            {
+              duration: 5000,
+            }
+          );
+        }
       }
     } catch (error: any) {
       console.error("Error uploading facial record:", error);
@@ -1545,8 +1591,20 @@ export default function PatientInfo() {
                     accessor: (_: FacialRecord, i: number) => String(i + 1),
                   },
                   {
-                    header: "Info",
-                    accessor: (rec: FacialRecord) => rec.info || "-",
+                    header: "File Location",
+                    accessor: (rec: FacialRecord) => rec.data || "-",
+                  },
+                  {
+                    header: "Prediction",
+                    accessor: (rec: FacialRecord) =>
+                      rec.prediction || "Unknown",
+                  },
+                  {
+                    header: "Confidence",
+                    accessor: (rec: FacialRecord) =>
+                      rec.confidence !== undefined
+                        ? `${(rec.confidence * 100).toFixed(1)}%`
+                        : "Unknown",
                   },
                   {
                     header: "Created At",

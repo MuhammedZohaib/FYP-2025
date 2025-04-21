@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import List
 
-from bson import ObjectId
-
 from DatabaseConnector import db
 
 
@@ -37,10 +35,14 @@ class FacialDataRecord:
         self._id = str(result.inserted_id)
         return self._id
 
-    @staticmethod
-    def find_by_patient_id(patient_id: str):
-        collection = db.get_collection('facial_records')
-        return collection.find({"patient_id": ObjectId(patient_id)})
+    @classmethod
+    def find_by_patient_id(cls, patient_id: str):
+        collection = db.get_collection("facial_records")
+        records = list(collection.find({"patient_id": patient_id}))
+
+        for record in records:
+            record["_id"] = str(record["_id"])  
+        return records
 
     @staticmethod
     def count_facial_records():

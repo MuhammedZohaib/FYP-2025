@@ -1,12 +1,9 @@
-import io
 import os
 import logging
 from datetime import datetime
 import re
 import mimetypes
-import stat
-from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import logging
 
@@ -21,7 +18,6 @@ import cv2
 import torch
 import torchvision.transforms as transforms
 from pydantic import BaseModel
-from PIL import Image
 
 from auth import verify_token
 from keys import SECRET_KEY
@@ -136,7 +132,7 @@ class VideoDataRecordSchema(BaseModel):
     confidence: float = 0.0
 
 @router.post("/facial/{patient_id}")
-def upload_image(patient_id: str, request: Request, image: UploadFile = File(...)):
+async def upload_image(patient_id: str, request: Request, image: UploadFile = File(...)):
     token = request.headers.get("access_token")
 
     if not token:
@@ -151,8 +147,11 @@ def upload_image(patient_id: str, request: Request, image: UploadFile = File(...
 
     filename = f"{patient_id}_{image.filename}"
     file_location = os.path.join(UPLOADS_DIR, filename)
+    
+    # Read file content asynchronously
+    contents = await image.read()
     with open(os.path.join(UPLOADS_DIR, filename), "wb") as f:
-        f.write(image.read())
+        f.write(contents)
 
     yolo_class, yolo_conf = inference_yolo(file_location)
 
