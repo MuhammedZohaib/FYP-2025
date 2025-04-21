@@ -143,26 +143,30 @@ const VideoPlayer = React.memo(
     const { token } = useAuth();
 
     const getVideoUrl = (videoPath: string) => {
-      // If the path is already a full URL, append the token
-      if (videoPath.startsWith("http")) {
-        const url = new URL(videoPath);
-        if (token) {
-          url.searchParams.append("token", token);
-        }
-        return url.toString();
-      }
-
-      // Otherwise, construct the URL with the API endpoint
       const baseUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const url = new URL(`${baseUrl}/api/files/${videoPath}`);
+      const accessToken = localStorage.getItem("access_token");
 
+      // Extract the relative path (e.g., video/filename.mp4)
+      let relativePath = videoPath;
+      if (videoPath.includes("/uploads/")) {
+        // Find the part after "/uploads/"
+        const parts = videoPath.split("/uploads/");
+        if (parts.length > 1) {
+          relativePath = parts[1];
+        }
+      } else if (videoPath.startsWith("/")) {
+        // Remove leading slash if it's an absolute path from root (less likely)
+        relativePath = videoPath.substring(1);
+      }
+
+      // Construct the API URL
+      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
+
+      // Append tokens
       if (token) {
         url.searchParams.append("token", token);
       }
-
-      // Add the access_token as a query parameter
-      const accessToken = localStorage.getItem("access_token");
       if (accessToken) {
         url.searchParams.append("access_token", accessToken);
       }
@@ -258,26 +262,24 @@ const AudioPlayer = React.memo(
     const { token } = useAuth();
 
     const getAudioUrl = (audioPath: string) => {
-      // If the path is already a full URL, append the token
-      if (audioPath.startsWith("http")) {
-        const url = new URL(audioPath);
-        if (token) {
-          url.searchParams.append("token", token);
-        }
-        return url.toString();
-      }
-
-      // Otherwise, construct the URL with the API endpoint
       const baseUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-      // Add access_token as a query parameter for authentication
       const accessToken = localStorage.getItem("access_token");
 
-      // Ensure we're using the API path format /api/files/...
-      const apiPath = `files/${audioPath}`;
+      let relativePath = audioPath;
+      if (audioPath.includes("/uploads/")) {
+        const parts = audioPath.split("/uploads/");
+        if (parts.length > 1) {
+          relativePath = parts[1];
+        }
+      } else if (audioPath.startsWith("/")) {
+        relativePath = audioPath.substring(1);
+      }
 
-      const url = new URL(`${baseUrl}/api/${apiPath}`);
+      // Construct the API URL
+      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
+
+      // Append tokens
       if (token) {
         url.searchParams.append("token", token);
       }
@@ -413,6 +415,27 @@ export default function PatientInfo() {
   const [selectedVideoRecord, setSelectedVideoRecord] =
     useState<VideoRecord | null>(null);
   const [showVideoPlayerModal, setShowVideoPlayerModal] = useState(false);
+
+  // Facial Record States
+  const [facialFile, setFacialFile] = useState<File | null>(null);
+  const [isFacialUploading, setIsFacialUploading] = useState(false);
+  const [facialUploadError, setFacialUploadError] = useState<string | null>(
+    null
+  );
+  const [facialDragActive, setFacialDragActive] = useState(false);
+  const facialFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Multimodal Record States
+  const [multimodalFile, setMultimodalFile] = useState<File | null>(null);
+  const [multimodalEEGData, setMultimodalEEGData] = useState<EEGRecord | null>(
+    null
+  );
+  const [isMultimodalUploading, setIsMultimodalUploading] = useState(false);
+  const [multimodalUploadError, setMultimodalUploadError] = useState<
+    string | null
+  >(null);
+  const [multimodalDragActive, setMultimodalDragActive] = useState(false);
+  const multimodalFileInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
 
@@ -893,6 +916,212 @@ export default function PatientInfo() {
   const openVideoPlayer = (record: VideoRecord) => {
     setSelectedVideoRecord(record);
     setShowVideoPlayerModal(true);
+  };
+
+  // Facial Record Handlers
+  const handleFacialDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setFacialDragActive(true);
+    } else if (e.type === "dragleave") {
+      setFacialDragActive(false);
+    }
+  };
+
+  const handleFacialDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFacialDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      if (files[0].type.startsWith("image/")) {
+        setFacialFile(files[0]);
+        toast.success("Image file selected successfully");
+      } else {
+        toast.error("Please upload an image file");
+      }
+    }
+  };
+
+  const handleFacialFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      if (files[0].type.startsWith("image/")) {
+        setFacialFile(files[0]);
+        toast.success("Image file selected successfully");
+      } else {
+        toast.error("Please upload an image file");
+      }
+    }
+  };
+
+  const handleFacialUpload = async () => {
+    if (!facialFile) return;
+
+    setIsFacialUploading(true);
+    setFacialUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", facialFile);
+
+      const accessToken = localStorage.getItem("access_token");
+      const response = await fetch(
+        `http://localhost:8000/api/upload/facial/${patient_id}`,
+        {
+          method: "POST",
+          headers: {
+            access_token: accessToken || "",
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to upload file");
+      }
+
+      if (data.success) {
+        const newRecord: FacialRecord = {
+          id: String(Date.now()),
+          info: data.file_location,
+          created_at: new Date().toISOString(),
+        };
+
+        setPatient((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            facial_data_records: [
+              ...(prev.facial_data_records || []),
+              newRecord,
+            ],
+          };
+        });
+
+        setShowFacialModal(false);
+        setFacialFile(null);
+        setFacialDragActive(false);
+        toast.success("Facial record uploaded successfully");
+      }
+    } catch (error: any) {
+      console.error("Error uploading facial record:", error);
+      setFacialUploadError(error.message || "Failed to upload facial record");
+      toast.error(error.message || "Failed to upload facial record");
+    } finally {
+      setIsFacialUploading(false);
+    }
+  };
+
+  // Multimodal Record Handlers
+  const handleMultimodalDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setMultimodalDragActive(true);
+    } else if (e.type === "dragleave") {
+      setMultimodalDragActive(false);
+    }
+  };
+
+  const handleMultimodalDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMultimodalDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      if (files[0].type.startsWith("image/")) {
+        setMultimodalFile(files[0]);
+        toast.success("Image file selected successfully");
+      } else {
+        toast.error("Please upload an image file");
+      }
+    }
+  };
+
+  const handleMultimodalFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      if (files[0].type.startsWith("image/")) {
+        setMultimodalFile(files[0]);
+        toast.success("Image file selected successfully");
+      } else {
+        toast.error("Please upload an image file");
+      }
+    }
+  };
+
+  const handleMultimodalEEGData = (data: EEGRecord) => {
+    setMultimodalEEGData(data);
+    toast.success("EEG data added successfully");
+  };
+
+  const handleMultimodalUpload = async () => {
+    if (!multimodalFile || !multimodalEEGData) return;
+
+    setIsMultimodalUploading(true);
+    setMultimodalUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", multimodalFile);
+      formData.append("eeg_data", JSON.stringify(multimodalEEGData));
+
+      const accessToken = localStorage.getItem("access_token");
+      const response = await fetch(
+        `http://localhost:8000/api/upload/multimodal/${patient_id}`,
+        {
+          method: "POST",
+          headers: {
+            access_token: accessToken || "",
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to upload multimodal record");
+      }
+
+      if (data.success) {
+        const newRecord: MultimodalRecord = {
+          id: String(Date.now()),
+          details: data.file_location,
+          created_at: new Date().toISOString(),
+        };
+
+        setPatient((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            multimodal_records: [...(prev.multimodal_records || []), newRecord],
+          };
+        });
+
+        setShowMultimodalModal(false);
+        setMultimodalFile(null);
+        setMultimodalEEGData(null);
+        setMultimodalDragActive(false);
+        toast.success("Multimodal record uploaded successfully");
+      }
+    } catch (error: any) {
+      console.error("Error uploading multimodal record:", error);
+      setMultimodalUploadError(
+        error.message || "Failed to upload multimodal record"
+      );
+      toast.error(error.message || "Failed to upload multimodal record");
+    } finally {
+      setIsMultimodalUploading(false);
+    }
   };
 
   if (loading) {
@@ -1479,7 +1708,7 @@ export default function PatientInfo() {
               <EegDataForm
                 patient={patient}
                 updateData={handleEEGUpload}
-                closeModal={() => setShowEEGModal(() => false)}
+                closeModal={() => setShowEEGModal(false)}
               />
             </div>
           </div>
@@ -1551,25 +1780,78 @@ export default function PatientInfo() {
       {/* Facial Modal */}
       {showFacialModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Facial Information Record
-                </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Add Facial Record</h2>
                 <button
-                  onClick={() => setShowFacialModal(false)}
+                  onClick={() => {
+                    setShowFacialModal(false);
+                    setFacialFile(null);
+                    setFacialUploadError(null);
+                  }}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="mt-4">
-                {/* Add your facial record form here */}
-                <p className="text-gray-400">
-                  Facial record form implementation coming soon...
+
+              {facialUploadError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+                  {facialUploadError}
+                </div>
+              )}
+
+              <div
+                className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                  facialDragActive
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-gray-700"
+                }`}
+                onDragEnter={handleFacialDrag}
+                onDragLeave={handleFacialDrag}
+                onDragOver={handleFacialDrag}
+                onDrop={handleFacialDrop}
+                onClick={() => facialFileInputRef.current?.click()}
+              >
+                <input
+                  ref={facialFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFacialFileSelect}
+                  className="hidden"
+                />
+                <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                <p className="text-lg font-semibold text-gray-400">
+                  {facialFile ? facialFile.name : "Drag and Drop image file"}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Click to browse or drag and drop
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported formats: PNG, JPG, JPEG
                 </p>
               </div>
+
+              {facialFile && (
+                <Button
+                  className="w-full mt-4 bg-green-500 hover:bg-green-600 relative"
+                  onClick={handleFacialUpload}
+                  disabled={isFacialUploading}
+                >
+                  {isFacialUploading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                      Uploading...
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="mr-2" size={16} />
+                      Upload Image
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -1580,23 +1862,88 @@ export default function PatientInfo() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-xl font-bold text-white">
-                  Add Multimodal Record
-                </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Add Multimodal Record</h2>
                 <button
-                  onClick={() => setShowMultimodalModal(false)}
+                  onClick={() => {
+                    setShowMultimodalModal(false);
+                    setMultimodalFile(null);
+                    setMultimodalEEGData(null);
+                  }}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="mt-4">
-                {/* Add your multimodal record form here */}
-                <p className="text-gray-400">
-                  Multimodal record form implementation coming soon...
-                </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* EEG Data Form Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium mb-4">EEG Data</h3>
+                  <EegDataForm
+                    patient={patient}
+                    updateData={handleMultimodalEEGData}
+                    closeModal={() => setShowMultimodalModal(false)}
+                  />
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium mb-4">Facial Image</h3>
+                  <div
+                    className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                      multimodalDragActive
+                        ? "border-blue-500 bg-blue-500/10"
+                        : "border-gray-700"
+                    }`}
+                    onDragEnter={handleMultimodalDrag}
+                    onDragLeave={handleMultimodalDrag}
+                    onDragOver={handleMultimodalDrag}
+                    onDrop={handleMultimodalDrop}
+                    onClick={() => multimodalFileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={multimodalFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleMultimodalFileSelect}
+                      className="hidden"
+                    />
+                    <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                    <p className="text-lg font-semibold text-gray-400">
+                      {multimodalFile
+                        ? multimodalFile.name
+                        : "Drag and Drop image file"}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      or click to browse
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              {multimodalUploadError && (
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+                  {multimodalUploadError}
+                </div>
+              )}
+
+              <Button
+                className="w-full mt-6 bg-green-500 hover:bg-green-600"
+                onClick={handleMultimodalUpload}
+                disabled={
+                  isMultimodalUploading || !multimodalFile || !multimodalEEGData
+                }
+              >
+                {isMultimodalUploading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                    <span>Uploading...</span>
+                  </div>
+                ) : (
+                  "Upload Multimodal Record"
+                )}
+              </Button>
             </div>
           </div>
         </div>

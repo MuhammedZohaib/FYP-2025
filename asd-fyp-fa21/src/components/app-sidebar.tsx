@@ -50,9 +50,7 @@ import { logout } from "@/lib/actions";
 export function AppSidebar() {
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({
     patients: false,
-    reports: false,
     resources: false,
-    settings: false,
   });
 
   const toggleItem = (key: string) => {
@@ -108,8 +106,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
-          <SidebarGroupContent>
+          <SidebarGroupContent className="mt-5">
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
@@ -129,37 +126,23 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <Collapsible
-                open={openItems.resources}
-                onOpenChange={() => toggleItem("resources")}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                      <Building2 className="h-6 w-6" />
-                      <span>Resources</span>
-                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/dashboard/clinical-guidelines">
-                            Clinical Guidelines
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/dashboard/research">Research</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/clinical-guidelines">
+                    <FileText className="h-6 w-6" />
+                    <span>Clinical Guidelines</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/research">
+                    <Building2 className="h-6 w-6" />
+                    <span>Research</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               <Collapsible
                 open={openItems.patients}
@@ -187,82 +170,6 @@ export function AppSidebar() {
                         <SidebarMenuSubButton asChild>
                           <Link href="/dashboard/patients/list">
                             Patient List
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-
-              <Collapsible
-                open={openItems.settings}
-                onOpenChange={() => toggleItem("settings")}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                      <Settings className="h-6 w-6" />
-                      <span>Settings</span>
-                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/general">General</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/security">Security</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/settings/notifications">
-                            Notifications
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Clinical</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <Collapsible
-                open={openItems.reports}
-                onOpenChange={() => toggleItem("reports")}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                      <FileText className="h-6 w-6" />
-                      <span>Reports</span>
-                      <ChevronRight className="ml-auto h-6 w-6 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/reports/clinical">Clinical Reports</Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/reports/analytical">
-                            Analytical Reports
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

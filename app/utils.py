@@ -10,10 +10,8 @@ EFFICIENTNET_WEIGHTAGE = 0.4
 
 photo_size = 240
 yolo_image_size = 320
-efficientnet_model_file = os.path.abspath("efficientnet_model.onnx")
-efficientnet_model_file = efficientnet_model_file.replace("\\", "\\\\")
-yolo_model_file = os.path.abspath("yolov8_m.onnx")
-yolo_model_file = yolo_model_file.replace("\\", "\\\\")
+efficientnet_model_file = "models/ml/weights/efficientnet_model.onnx"
+yolo_model_file = "models/ml/weights/yolov8_m.onnx"
 
 
 def extract_mfcc_features(file_path):

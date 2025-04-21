@@ -45,6 +45,11 @@ mimetypes.add_type('video/mp4', '.mp4')
 mimetypes.add_type('video/webm', '.webm')
 mimetypes.add_type('video/x-msvideo', '.avi')
 mimetypes.add_type('video/quicktime', '.mov')
+# Add common audio types
+mimetypes.add_type('audio/mpeg', '.mp3')
+mimetypes.add_type('audio/wav', '.wav')
+mimetypes.add_type('audio/ogg', '.ogg')
+mimetypes.add_type('audio/aac', '.aac')
 
 # Constants
 YOLO_WEIGHTAGE = 0.6
@@ -548,36 +553,86 @@ async def get_video_model_status(request: Request):
 
 @router.get('/files/{file_path:path}')
 async def get_upload_file(
-    file_path: str, 
-    request: Request, 
+    file_path: str,
+    request: Request,
     access_token: str = None,
     range: Optional[str] = Header(None)
 ):
     """Serve static files from the uploads directory with range request support"""
+    logger.info(f"File request received for path: {file_path}")
+    logger.info(f"Range header: {range}")
+    token = access_token or request.headers.get("access_token")
+    
+    # Clean the file_path to prevent potential directory traversal issues
+    secure_file_path = os.path.normpath(os.path.join('/', file_path)).lstrip('/')
+    logger.info(f"Normalized file path: {secure_file_path}")
+
     try:
         # Verify token
-        token = access_token or request.headers.get("access_token")
         if not token or not verify_token(token):
+            logger.warning(f"Invalid or missing token for file request: {file_path}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        
-        # Construct the full file path
-        if file_path.startswith("speech/"):
-            full_path = os.path.join(UPLOADS_DIR_SPEECH, file_path.replace("speech/", ""))
-        elif file_path.startswith("video/"):
-            full_path = os.path.join(UPLOADS_DIR_VIDEO, file_path.replace("video/", ""))
+
+        # Determine base directory and relative path
+        if secure_file_path.startswith("speech/"):
+            base_dir = UPLOADS_DIR_SPEECH
+            relative_path = secure_file_path.replace("speech/", "", 1)
+        elif secure_file_path.startswith("video/"):
+            base_dir = UPLOADS_DIR_VIDEO
+            relative_path = secure_file_path.replace("video/", "", 1)
         else:
-            full_path = os.path.join(UPLOADS_DIR, file_path)
-        
-        # Check if file exists
-        if not os.path.exists(full_path):
-            logger.error(f"File not found: {full_path}")
+            # Try to infer the correct directory based on file extension
+            ext = os.path.splitext(secure_file_path)[1].lower()
+            if ext in ['.wav', '.mp3', '.ogg', '.aac']:
+                base_dir = UPLOADS_DIR_SPEECH
+                relative_path = secure_file_path
+            elif ext in ['.mp4', '.avi', '.mov', '.webm']:
+                base_dir = UPLOADS_DIR_VIDEO
+                relative_path = secure_file_path
+            else:
+                base_dir = UPLOADS_DIR
+                relative_path = secure_file_path
+
+        # Try multiple path combinations
+        possible_paths = [
+            os.path.abspath(os.path.join(base_dir, relative_path)),  # Direct path
+            os.path.abspath(os.path.join(UPLOADS_DIR, secure_file_path)),  # Full path from uploads
+            os.path.abspath(os.path.join(base_dir, os.path.basename(relative_path)))  # Just filename
+        ]
+
+        logger.info(f"Trying possible file paths:")
+        for path in possible_paths:
+            logger.info(f"- {path}")
+            if os.path.exists(path) and os.path.isfile(path):
+                full_path = path
+                logger.info(f"Found file at: {full_path}")
+                break
+        else:
+            logger.error(f"File not found in any of the attempted paths")
+            logger.info(f"Base directory contents ({base_dir}):")
+            if os.path.exists(base_dir):
+                for f in os.listdir(base_dir):
+                    logger.info(f"- {f}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-        
-        # If it's a video file, use our stream handler with range support
-        if file_path.lower().endswith(('.mp4', '.avi', '.mov', '.webm')):
+
+        # Security check: Ensure the resolved path is within allowed directories
+        if not any(full_path.startswith(os.path.abspath(d)) for d in [UPLOADS_DIR, UPLOADS_DIR_SPEECH, UPLOADS_DIR_VIDEO]):
+            logger.error(f"Attempt to access file outside designated directories: {full_path}")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        # Guess content type
+        content_type, _ = mimetypes.guess_type(full_path)
+        if not content_type:
+            content_type = 'application/octet-stream'
+        logger.info(f"Determined Content-Type: {content_type} for file: {full_path}")
+
+        # If it's a video or audio file, use range support
+        if content_type.startswith('video/') or content_type.startswith('audio/'):
+            logger.info(f"Serving {content_type} with range support")
             return await send_file_with_range_support(full_path, range)
-        
-        # For all other files, use FileResponse which should handle them appropriately
+
+        # For all other files, use FileResponse
+        logger.info(f"Serving {content_type} using FileResponse")
         return FileResponse(
             path=full_path,
             headers={
@@ -587,7 +642,7 @@ async def get_upload_file(
             }
         )
     except Exception as e:
-        logger.error(f"Error serving file: {str(e)}")
+        logger.error(f"Error serving file '{file_path}': {str(e)}", exc_info=True)
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error serving file: {str(e)}")
