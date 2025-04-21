@@ -100,6 +100,8 @@ interface MultimodalRecord {
 interface Predictions {
   eeg_data_records: EEGRecord[];
   speech_data_records: SpeechRecord[];
+  video_data_records: VideoRecord[];
+  facial_data_records: FacialRecord[];
 }
 
 interface TableColumn<T> {
@@ -379,6 +381,8 @@ export default function PatientInfo() {
   const [predictions, setPredictions] = useState<Predictions>({
     eeg_data_records: [],
     speech_data_records: [],
+    video_data_records: [],
+    facial_data_records: [],
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("patient-information");
@@ -559,12 +563,28 @@ export default function PatientInfo() {
             created_at: record.created_at || new Date().toISOString(),
             confidence: record.confidence || 0,
           })),
+          video_data_records: videoPredictions.map((record: any) => ({
+            id: record.id || String(Date.now()),
+            data: record.data || "",
+            prediction: record.prediction || "unknown",
+            created_at: record.created_at || new Date().toISOString(),
+            confidence: record.confidence || 0,
+          })),
+          facial_data_records: facialPredictions.map((record: any) => ({
+            id: record.id || String(Date.now()),
+            data: record.data || "",
+            prediction: record.prediction || "unknown",
+            created_at: record.created_at || new Date().toISOString(),
+            confidence: record.confidence || 0,
+          })),
         });
       } catch (error) {
         console.error("Error fetching predictions:", error);
         setPredictions({
           eeg_data_records: [],
           speech_data_records: [],
+          video_data_records: [],
+          facial_data_records: [],
         });
       }
     }
@@ -1274,11 +1294,7 @@ export default function PatientInfo() {
         header: "File Name",
         accessor: (rec: SpeechRecord) => {
           if (!rec.data) return "-";
-          const parts = rec.data.split("/");
-          const fileName = parts[parts.length - 1]
-            .split("_")[1]
-            .concat(parts[parts.length - 1].split("_")[2]);
-          return fileName;
+          return rec.data;
         },
       },
       {
@@ -1309,7 +1325,7 @@ export default function PatientInfo() {
   };
 
   const renderVideoRecords = () => {
-    const records = patient?.video_records || [];
+    const records = predictions?.video_data_records || [];
 
     return renderTable(
       records as VideoRecord[],
