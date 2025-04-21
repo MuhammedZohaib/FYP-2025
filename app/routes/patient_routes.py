@@ -90,48 +90,21 @@ def get_patient(patient_id: str):
 
 
 @router.put('/{patient_id}', status_code=status.HTTP_200_OK)
-async def update_patient(patient_id: str, request: Request):
-    try:
-        # Verify token
-        token = request.headers.get("access_token")
-        if not token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+def update_patient(patient_id: str, update_data: PatientSchema):
+    patient = Patient.find_by_id(patient_id)
+    patient_dict = {**patient, "_id": str(patient["_id"])}
+    patient_dict.pop("patient_id")
+    if patient is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
-        # Get existing patient
-        patient = Patient.find_by_id(patient_id)
-        if patient is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    for field, value in update_data.model_dump().items():
+        patient_dict[field] = value
 
-        # Get update data from request body
-        update_data = await request.json()
-        
-        # Create a copy of the patient dict and update with new data
-        patient_dict = {**patient, "_id": str(patient["_id"])}
-        
-        # Update fields from the request
-        allowed_fields = [
-            "name", "email", "phone", "address", "dob", "gender",
-            "born_country", "born_city", "father_name", "father_cnic",
-            "mother_name", "mother_cnic", "other_info"
-        ]
-        
-        for field in allowed_fields:
-            if field in update_data:
-                patient_dict[field] = update_data[field]
+    updated = Patient.update(patient_id, patient_dict)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
 
-        # Update the patient
-        updated = Patient.update(patient_id, patient_dict)
-        if not updated:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
-
-        return {"detail": "Patient updated successfully", "patient": patient_dict}
-
-    except Exception as e:
-        logger.error(f"Error updating patient: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return {"detail": "Patient updated successfully", "patient": patient_dict}
 
 
 @router.get('/{patient_id}/predictions', status_code=status.HTTP_200_OK)
