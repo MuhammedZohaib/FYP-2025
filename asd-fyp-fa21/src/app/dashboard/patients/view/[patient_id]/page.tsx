@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, JSX, useCallback } from "react";
+import { useState, useEffect, useRef, JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,8 +16,6 @@ import {
   X,
   Upload,
   Eye,
-  Play,
-  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +29,7 @@ import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import AudioUploader from "@/components/AudioUploader";
 
 interface Patient {
   _id: string;
@@ -58,12 +57,13 @@ interface Patient {
 }
 
 interface SpeechRecord {
-  _id: string;
+  _id?: any;
+  confidence?: any;
+  created_at?: any;
   patient_id: string;
   data: string;
   prediction: "HL-ASD" | "Typical";
-  created_at: string;
-  confidence?: number;
+  date: string;
 }
 
 interface EEGRecord {
@@ -109,271 +109,393 @@ interface TableColumn<T> {
   accessor: (item: T, index?: number) => string;
 }
 
-// Helper function to extract filename from path
-const extractFilename = (path: string | undefined): string => {
-  if (!path) {
-    return "";
-  }
+interface EditProfileFormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  dob: string;
+  gender: "male" | "female";
+  born_country: string;
+  born_city: string;
+  father_name: string;
+  father_cnic: string;
+  mother_name: string;
+  mother_cnic: string;
+  other_info?: string;
+}
 
-  console.log("Extracting filename from path:", path);
+// Add EditProfile component
+const EditProfile = ({
+  patient,
+  onClose,
+  onUpdate,
+}: {
+  patient: Patient;
+  onClose: () => void;
+  onUpdate: (updatedPatient: Patient) => void;
+}) => {
+  const [formData, setFormData] = useState<EditProfileFormData>({
+    name: patient.name,
+    email: patient.email,
+    phone: patient.phone,
+    address: patient.address,
+    dob: patient.dob,
+    gender: patient.gender,
+    born_country: patient.born_country,
+    born_city: patient.born_city,
+    father_name: patient.father_name,
+    father_cnic: patient.father_cnic,
+    mother_name: patient.mother_name,
+    mother_cnic: patient.mother_cnic,
+    other_info: patient.other_info,
+  });
 
-  // Handle different path formats
-  if (path.includes("uploads/speech/")) {
-    return path.split("uploads/speech/").pop() || "";
-  } else if (path.includes("uploads/video/")) {
-    return path.split("uploads/video/").pop() || "";
-  } else if (path.includes("/")) {
-    return path.split("/").pop() || "";
-  }
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // If no slashes, assume it's already just the filename
-  return path;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        throw new Error("No access token found");
+      }
+
+      // Only send the fields that are allowed to be updated
+      const updateData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        dob: formData.dob,
+        gender: formData.gender,
+        born_country: formData.born_country,
+        born_city: formData.born_city,
+        father_name: formData.father_name,
+        father_cnic: formData.father_cnic,
+        mother_name: formData.mother_name,
+        mother_cnic: formData.mother_cnic,
+        other_info: formData.other_info,
+      };
+
+      const response = await fetch(
+        `http://localhost:8000/api/patient/${patient._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: accessToken,
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to update patient");
+      }
+
+      toast.success("Patient profile updated successfully");
+      onUpdate(data.patient);
+      onClose();
+    } catch (error: any) {
+      console.error("Error updating patient:", error);
+      setError(error.message || "Failed to update patient");
+      toast.error(error.message || "Failed to update patient");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">Edit Patient Profile</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium mb-4">
+                  Personal Information
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, dob: e.target.value }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        gender: e.target.value as "male" | "female",
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium mb-4">
+                  Additional Information
+                </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Country of Birth
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.born_country}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        born_country: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    City of Birth
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.born_city}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        born_city: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Father's Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.father_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        father_name: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Father's CNIC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.father_cnic}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        father_cnic: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Mother's Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.mother_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        mother_name: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Mother's CNIC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.mother_cnic}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        mother_cnic: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Other Information */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Other Information
+              </label>
+              <textarea
+                value={formData.other_info || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    other_info: e.target.value,
+                  }))
+                }
+                className="w-full bg-[#1a1a1a] border border-gray-800 rounded-md px-3 py-2 h-24"
+              />
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="border-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Updating...
+                  </div>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 };
-
-// Video Player Component with improved format compatibility
-const VideoPlayer = React.memo(
-  ({
-    src,
-    poster,
-    onError,
-  }: {
-    src: string;
-    poster?: string;
-    onError?: (error: string) => void;
-  }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { token } = useAuth();
-
-    const getVideoUrl = (videoPath: string) => {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const accessToken = localStorage.getItem("access_token");
-
-      // Extract the relative path (e.g., video/filename.mp4)
-      let relativePath = videoPath;
-      if (videoPath.includes("/uploads/")) {
-        // Find the part after "/uploads/"
-        const parts = videoPath.split("/uploads/");
-        if (parts.length > 1) {
-          relativePath = parts[1];
-        }
-      } else if (videoPath.startsWith("/")) {
-        // Remove leading slash if it's an absolute path from root (less likely)
-        relativePath = videoPath.substring(1);
-      }
-
-      // Construct the API URL
-      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
-
-      // Append tokens
-      if (token) {
-        url.searchParams.append("token", token);
-      }
-      if (accessToken) {
-        url.searchParams.append("access_token", accessToken);
-      }
-
-      console.log("Generated video URL:", url.toString());
-      return url.toString();
-    };
-
-    const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-      const videoElement = e.currentTarget;
-      const errorMessage = videoElement.error
-        ? `Video error: ${videoElement.error.message} (code: ${videoElement.error.code})`
-        : "Unknown video playback error";
-
-      console.error("Video playback error:", {
-        error: videoElement.error,
-        src: videoElement.src,
-        readyState: videoElement.readyState,
-      });
-
-      setError(errorMessage);
-      setLoading(false);
-
-      if (onError) {
-        onError(errorMessage);
-      }
-    };
-
-    const handleLoadedData = () => {
-      setLoading(false);
-      setError(null);
-    };
-
-    useEffect(() => {
-      // Reset states when source changes
-      setLoading(true);
-      setError(null);
-    }, [src]);
-
-    return (
-      <div className="video-player-container relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
-            <div className="text-red-500 text-center mb-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 mx-auto mb-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {error}
-            </div>
-            <div className="text-sm text-gray-500">Source: {src}</div>
-          </div>
-        )}
-
-        <video
-          ref={videoRef}
-          className="w-full h-auto"
-          controls
-          src={getVideoUrl(src)}
-          poster={poster}
-          onLoadedData={handleLoadedData}
-          onError={handleError}
-        />
-      </div>
-    );
-  }
-);
-
-VideoPlayer.displayName = "VideoPlayer";
-
-// Audio Player Component with fallbacks
-const AudioPlayer = React.memo(
-  ({ src, onError }: { src: string; onError?: (error: string) => void }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { token } = useAuth();
-
-    const getAudioUrl = (audioPath: string) => {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const accessToken = localStorage.getItem("access_token");
-
-      let relativePath = audioPath;
-      if (audioPath.includes("/uploads/")) {
-        const parts = audioPath.split("/uploads/");
-        if (parts.length > 1) {
-          relativePath = parts[1];
-        }
-      } else if (audioPath.startsWith("/")) {
-        relativePath = audioPath.substring(1);
-      }
-
-      // Construct the API URL
-      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
-
-      // Append tokens
-      if (token) {
-        url.searchParams.append("token", token);
-      }
-      if (accessToken) {
-        url.searchParams.append("access_token", accessToken);
-      }
-
-      console.log("Generated audio URL:", url.toString());
-      return url.toString();
-    };
-
-    const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-      const audioElement = e.currentTarget;
-      const errorMessage = audioElement.error
-        ? `Audio error: ${audioElement.error.message} (code: ${audioElement.error.code})`
-        : "Unknown audio playback error";
-
-      console.error("Audio playback error:", {
-        error: audioElement.error,
-        src: audioElement.src,
-        readyState: audioElement.readyState,
-      });
-
-      setError(errorMessage);
-      setLoading(false);
-
-      if (onError) {
-        onError(errorMessage);
-      }
-    };
-
-    const handleLoadedData = () => {
-      setLoading(false);
-      setError(null);
-    };
-
-    useEffect(() => {
-      // Reset states when source changes
-      setLoading(true);
-      setError(null);
-    }, [src]);
-
-    return (
-      <div className="audio-player-container relative">
-        {loading && (
-          <div className="flex items-center justify-center h-16 bg-gray-100 bg-opacity-50 rounded">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex flex-col items-center justify-center bg-gray-100 p-4 rounded">
-            <div className="text-red-500 text-center mb-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 mx-auto mb-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {error}
-            </div>
-            <div className="text-sm text-gray-500">Source: {src}</div>
-          </div>
-        )}
-
-        {!error && (
-          <audio
-            ref={audioRef}
-            className="w-full"
-            controls
-            src={getAudioUrl(src)}
-            onLoadedData={handleLoadedData}
-            onError={handleError}
-            style={{ display: "block", width: "100%", minHeight: "40px" }}
-          />
-        )}
-      </div>
-    );
-  }
-);
-
-AudioPlayer.displayName = "AudioPlayer";
 
 export default function PatientInfo() {
   const { patient_id } = useParams();
@@ -633,69 +755,6 @@ export default function PatientInfo() {
     }
   };
 
-  const handleUpload = async () => {
-    if (!uploadFile) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("audio", uploadFile);
-
-      const accessToken = localStorage.getItem("access_token");
-      const response = await fetch(
-        `http://localhost:8000/api/upload/speech/${patient_id}`,
-        {
-          method: "POST",
-          headers: {
-            access_token: accessToken || "",
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to upload file");
-      }
-
-      if (data.success) {
-        const newRecord: SpeechRecord = {
-          _id: String(Date.now()),
-          data: data.file_location,
-          prediction: data.prediction || "unknown",
-          created_at: new Date().toISOString(),
-          confidence: data.confidence || 0,
-          patient_id: patient_id
-            ? typeof patient_id === "string"
-              ? patient_id
-              : patient_id[0]
-            : "",
-        };
-
-        console.log("Created new speech record:", newRecord);
-
-        setPredictions((prev) => ({
-          ...prev,
-          speech_data_records: [...(prev.speech_data_records || []), newRecord],
-        }));
-
-        setShowSpeechModal(false);
-        setUploadFile(null);
-        setDragActive(false);
-        toast.success("Speech record uploaded successfully");
-      }
-    } catch (error: any) {
-      console.error("Error uploading file:", error);
-      setUploadError(error.message || "Failed to upload file");
-      toast.error(error.message || "Failed to upload file");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleEEGUpload = async (data: EEGRecord) => {
     try {
       setPredictions((prev) => ({
@@ -731,6 +790,13 @@ export default function PatientInfo() {
       console.error("Error handling EEG upload:", error);
       toast.error(error.message || "Failed to process EEG data");
     }
+  };
+
+  const handleSpeechUpload = (data: SpeechRecord) => {
+    setPredictions((prev) => ({
+      ...prev,
+      speech_data_records: [...prev.speech_data_records, data],
+    }));
   };
 
   const handleVideoDrag = (e: React.DragEvent) => {
@@ -802,20 +868,25 @@ export default function PatientInfo() {
       if (data.success) {
         const newRecord: VideoRecord = {
           id: String(Date.now()),
-          data: data.file_location,
+          data: data.data,
           prediction: data.prediction,
           created_at: new Date().toISOString(),
           confidence: data.confidence,
         };
 
         // Update patient's video records
-        setPatient((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            video_records: [...(prev.video_records || []), newRecord],
-          };
-        });
+        // setPatient((prev) => {
+        //   if (!prev) return prev;
+        //   return {
+        //     ...prev,
+        //     video_records: [...(prev.video_records || []), newRecord],
+        //   };
+        // });
+
+        setPredictions((prev) => ({
+          ...prev,
+          video_data_records: [...prev.video_data_records, data.record],
+        }));
 
         setShowVideoModal(false);
         setVideoFile(null);
@@ -1377,10 +1448,10 @@ export default function PatientInfo() {
     );
   };
 
-  const openSpeechModal = (record: SpeechRecord) => {
-    setSelectedSpeechRecord(record);
-    setShowSpeechModal(true);
-  };
+  // const openSpeechModal = (record: SpeechRecord) => {
+  //   setSelectedSpeechRecord(record);
+  //   setShowSpeechModal(true);
+  // };
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
@@ -1752,7 +1823,7 @@ export default function PatientInfo() {
                 <h3 className="text-lg font-medium">Speech Data Records</h3>
                 <Button
                   onClick={() => setShowSpeechModal(true)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   Add Speech Record
                 </Button>
@@ -1789,65 +1860,13 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Speech Modal */}
-      {showSpeechModal && selectedSpeechRecord && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-sm">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Speech Record Details</h3>
-              <Button
-                onClick={() => {
-                  setShowSpeechModal(false);
-                  setSelectedSpeechRecord(null);
-                }}
-                className="p-1 hover:bg-gray-200 rounded"
-              >
-                <X size={24} />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium">Created At</h4>
-                <p>
-                  {new Date(selectedSpeechRecord.created_at).toLocaleString()}
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-medium">Prediction</h4>
-                <div className="mt-1 flex items-center">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedSpeechRecord.prediction === "HL-ASD"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {selectedSpeechRecord.prediction}
-                  </span>
-                  {selectedSpeechRecord.confidence !== undefined && (
-                    <span className="ml-3 text-gray-500">
-                      Confidence:{" "}
-                      {(selectedSpeechRecord.confidence * 100).toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Audio</h4>
-                <div className="bg-gray-100 p-3 rounded">
-                  <AudioPlayer
-                    src={selectedSpeechRecord.data}
-                    onError={(errorMsg) =>
-                      console.error("Speech audio error:", errorMsg)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+      {showSpeechModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <AudioUploader
+            onClose={() => setShowSpeechModal(false)}
+            patient_id={patient_id as string}
+            update={handleSpeechUpload}
+          />
         </div>
       )}
 
@@ -2132,14 +2151,6 @@ export default function PatientInfo() {
                 </p>
               </div>
 
-              {/* Display audio path */}
-              <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]">
-                <p className="text-gray-400 text-sm mb-1">File path:</p>
-                <code className="text-xs text-gray-300">
-                  {selectedSpeechRecord.data}
-                </code>
-              </div>
-
               <div className="mb-4">
                 <p className="text-gray-400 mb-2">Prediction:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
@@ -2156,9 +2167,15 @@ export default function PatientInfo() {
 
               <div className="flex justify-center mb-4">
                 <div className="w-full bg-[#1a1a1a] p-3 rounded">
-                  <AudioPlayer
+                  <audio
+                    className="w-full"
+                    controls
                     src={selectedSpeechRecord.data}
-                    onError={() => {}}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      minHeight: "40px",
+                    }}
                   />
                 </div>
               </div>
@@ -2183,10 +2200,10 @@ export default function PatientInfo() {
               </div>
 
               <div className="mb-4">
-                <VideoPlayer
+                <video
+                  className="max-w-full max-h-[400px] w-full h-auto"
+                  controls
                   src={selectedVideoRecord.data}
-                  poster={selectedVideoRecord.data}
-                  onError={() => {}}
                 />
               </div>
 

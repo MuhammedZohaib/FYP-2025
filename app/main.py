@@ -15,12 +15,6 @@ from models.mongodb.Patient import Patient
 from pydantic_schemas.Email import EmailSchema
 from routes import router as api_router
 
-cloudinary.config(
-    cloud_name="df07a9xfz",
-    api_key="974667289268378",
-    api_secret="uzJxAsnJ_XrqASbKPz438lN06XA"
-)
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
