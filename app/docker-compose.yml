@@ -8,3 +8,7 @@ services:
       - "8000:15400"
     volumes:
       - .:/app
+      - torch_hub_cache:/root/.cache/torch/hub
+
+volumes:
+  torch_hub_cache:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, JSX, useCallback } from "react";
+import { useState, useEffect, useRef, JSX } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,8 +16,6 @@ import {
   X,
   Upload,
   Eye,
-  Play,
-  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +29,7 @@ import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import AudioUploader from "@/components/AudioUploader";
 
 interface Patient {
   _id: string;
@@ -58,12 +57,13 @@ interface Patient {
 }
 
 interface SpeechRecord {
-  _id: string;
+  _id?: any,
+  confidence?: any,
+  created_at?: any,
   patient_id: string;
   data: string;
   prediction: "HL-ASD" | "Typical";
-  created_at: string;
-  confidence?: number;
+  date: string;
 }
 
 interface EEGRecord {
@@ -257,123 +257,118 @@ const VideoPlayer = React.memo(
 
 VideoPlayer.displayName = "VideoPlayer";
 
-// Audio Player Component with fallbacks
-const AudioPlayer = React.memo(
-  ({ src, onError }: { src: string; onError?: (error: string) => void }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { token } = useAuth();
+// const AudioPlayer = React.memo(
+//   ({ src, onError }: { src: string; onError?: (error: string) => void }) => {
+//     const audioRef = useRef<HTMLAudioElement>(null);
+//     const [loading, setLoading] = useState(true);
+//     const [error, setError] = useState<string | null>(null);
+//     const { token } = useAuth();
+//
+//     const getAudioUrl = (audioPath: string) => {
+//       const baseUrl =
+//         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+//       const accessToken = localStorage.getItem("access_token");
+//
+//       let relativePath = audioPath;
+//       if (audioPath.includes("/uploads/")) {
+//         const parts = audioPath.split("/uploads/");
+//         if (parts.length > 1) {
+//           relativePath = parts[1];
+//         }
+//       } else if (audioPath.startsWith("/")) {
+//         relativePath = audioPath.substring(1);
+//       }
+//
+//       // Construct the API URL
+//       const url = new URL(`${baseUrl}/api/files/${relativePath}`);
+//
+//       // Append tokens
+//       if (token) {
+//         url.searchParams.append("token", token);
+//       }
+//       if (accessToken) {
+//         url.searchParams.append("access_token", accessToken);
+//       }
+//
+//       console.log("Generated audio URL:", url.toString());
+//       return url.toString();
+//     };
+//
+//     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+//       const audioElement = e.currentTarget;
+//       const errorMessage = audioElement.error
+//         ? `Audio error: ${audioElement.error.message} (code: ${audioElement.error.code})`
+//         : "Unknown audio playback error";
+//
+//       console.error("Audio playback error:", {
+//         error: audioElement.error,
+//         src: audioElement.src,
+//         readyState: audioElement.readyState,
+//       });
+//
+//       setError(errorMessage);
+//       setLoading(false);
+//
+//       if (onError) {
+//         onError(errorMessage);
+//       }
+//     };
+//
+//     const handleLoadedData = () => {
+//       setLoading(false);
+//       setError(null);
+//     };
+//
+//     useEffect(() => {
+//       // Reset states when source changes
+//       setLoading(true);
+//       setError(null);
+//     }, [src]);
+//
+//     return (
+//       <div className="audio-player-container relative">
+//         {loading && (
+//           <div className="flex items-center justify-center h-16 bg-gray-100 bg-opacity-50 rounded">
+//             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
+//           </div>
+//         )}
+//
+//         {error && (
+//           <div className="flex flex-col items-center justify-center bg-gray-100 p-4 rounded">
+//             <div className="text-red-500 text-center mb-2">
+//               <svg
+//                 xmlns="http://www.w3.org/2000/svg"
+//                 className="h-6 w-6 mx-auto mb-1"
+//                 fill="none"
+//                 viewBox="0 0 24 24"
+//                 stroke="currentColor"
+//               >
+//                 <path
+//                   strokeLinecap="round"
+//                   strokeLinejoin="round"
+//                   strokeWidth={2}
+//                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+//                 />
+//               </svg>
+//               {error}
+//             </div>
+//             <div className="text-sm text-gray-500">Source: {src}</div>
+//           </div>
+//         )}
+//
+//           <audio
+//             ref={audioRef}
+//             className="w-full"
+//             controls
+//             src={src}
+//             style={{ display: "block", width: "100%", minHeight: "40px" }}
+//           />
+//       </div>
+//     );
+//   }
+// );
 
-    const getAudioUrl = (audioPath: string) => {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const accessToken = localStorage.getItem("access_token");
-
-      let relativePath = audioPath;
-      if (audioPath.includes("/uploads/")) {
-        const parts = audioPath.split("/uploads/");
-        if (parts.length > 1) {
-          relativePath = parts[1];
-        }
-      } else if (audioPath.startsWith("/")) {
-        relativePath = audioPath.substring(1);
-      }
-
-      // Construct the API URL
-      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
-
-      // Append tokens
-      if (token) {
-        url.searchParams.append("token", token);
-      }
-      if (accessToken) {
-        url.searchParams.append("access_token", accessToken);
-      }
-
-      console.log("Generated audio URL:", url.toString());
-      return url.toString();
-    };
-
-    const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-      const audioElement = e.currentTarget;
-      const errorMessage = audioElement.error
-        ? `Audio error: ${audioElement.error.message} (code: ${audioElement.error.code})`
-        : "Unknown audio playback error";
-
-      console.error("Audio playback error:", {
-        error: audioElement.error,
-        src: audioElement.src,
-        readyState: audioElement.readyState,
-      });
-
-      setError(errorMessage);
-      setLoading(false);
-
-      if (onError) {
-        onError(errorMessage);
-      }
-    };
-
-    const handleLoadedData = () => {
-      setLoading(false);
-      setError(null);
-    };
-
-    useEffect(() => {
-      // Reset states when source changes
-      setLoading(true);
-      setError(null);
-    }, [src]);
-
-    return (
-      <div className="audio-player-container relative">
-        {loading && (
-          <div className="flex items-center justify-center h-16 bg-gray-100 bg-opacity-50 rounded">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex flex-col items-center justify-center bg-gray-100 p-4 rounded">
-            <div className="text-red-500 text-center mb-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 mx-auto mb-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {error}
-            </div>
-            <div className="text-sm text-gray-500">Source: {src}</div>
-          </div>
-        )}
-
-        {!error && (
-          <audio
-            ref={audioRef}
-            className="w-full"
-            controls
-            src={getAudioUrl(src)}
-            onLoadedData={handleLoadedData}
-            onError={handleError}
-            style={{ display: "block", width: "100%", minHeight: "40px" }}
-          />
-        )}
-      </div>
-    );
-  }
-);
-
-AudioPlayer.displayName = "AudioPlayer";
+// AudioPlayer.displayName = "AudioPlayer";
 
 interface EditProfileFormData {
   name: string;
@@ -1059,6 +1054,7 @@ export default function PatientInfo() {
           prediction: data.prediction || "unknown",
           created_at: new Date().toISOString(),
           confidence: data.confidence || 0,
+          date: "",
           patient_id: patient_id
             ? typeof patient_id === "string"
               ? patient_id
@@ -1123,6 +1119,16 @@ export default function PatientInfo() {
       toast.error(error.message || "Failed to process EEG data");
     }
   };
+
+  const handleSpeechUpload = (data: SpeechRecord) => {
+    setPredictions(prev => ({
+      ...prev,
+      speech_data_records: [
+        ...prev.speech_data_records,
+        data   
+      ]
+    })
+  )};
 
   const handleVideoDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1773,10 +1779,10 @@ export default function PatientInfo() {
     );
   };
 
-  const openSpeechModal = (record: SpeechRecord) => {
-    setSelectedSpeechRecord(record);
-    setShowSpeechModal(true);
-  };
+  // const openSpeechModal = (record: SpeechRecord) => {
+  //   setSelectedSpeechRecord(record);
+  //   setShowSpeechModal(true);
+  // };
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
@@ -2151,7 +2157,7 @@ export default function PatientInfo() {
                 <h3 className="text-lg font-medium">Speech Data Records</h3>
                 <Button
                   onClick={() => setShowSpeechModal(true)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   Add Speech Record
                 </Button>
@@ -2188,65 +2194,9 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Speech Modal */}
-      {showSpeechModal && selectedSpeechRecord && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-filter backdrop-blur-sm">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Speech Record Details</h3>
-              <Button
-                onClick={() => {
-                  setShowSpeechModal(false);
-                  setSelectedSpeechRecord(null);
-                }}
-                className="p-1 hover:bg-gray-200 rounded"
-              >
-                <X size={24} />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium">Created At</h4>
-                <p>
-                  {new Date(selectedSpeechRecord.created_at).toLocaleString()}
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-medium">Prediction</h4>
-                <div className="mt-1 flex items-center">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedSpeechRecord.prediction === "HL-ASD"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {selectedSpeechRecord.prediction}
-                  </span>
-                  {selectedSpeechRecord.confidence !== undefined && (
-                    <span className="ml-3 text-gray-500">
-                      Confidence:{" "}
-                      {(selectedSpeechRecord.confidence * 100).toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Audio</h4>
-                <div className="bg-gray-100 p-3 rounded">
-                  <AudioPlayer
-                    src={selectedSpeechRecord.data}
-                    onError={(errorMsg) =>
-                      console.error("Speech audio error:", errorMsg)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+      {showSpeechModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <AudioUploader onClose={() => setShowSpeechModal(false)} patient_id={patient_id as string} update={handleSpeechUpload} />
         </div>
       )}
 
@@ -2532,12 +2482,12 @@ export default function PatientInfo() {
               </div>
 
               {/* Display audio path */}
-              <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]">
-                <p className="text-gray-400 text-sm mb-1">File path:</p>
-                <code className="text-xs text-gray-300">
-                  {selectedSpeechRecord.data}
-                </code>
-              </div>
+              {/* <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]"> */}
+              {/*   <p className="text-gray-400 text-sm mb-1">File path:</p> */}
+              {/*   <code className="text-xs text-gray-300"> */}
+              {/*     {selectedSpeechRecord.data} */}
+              {/*   </code> */}
+              {/* </div> */}
 
               <div className="mb-4">
                 <p className="text-gray-400 mb-2">Prediction:</p>
@@ -2555,10 +2505,12 @@ export default function PatientInfo() {
 
               <div className="flex justify-center mb-4">
                 <div className="w-full bg-[#1a1a1a] p-3 rounded">
-                  <AudioPlayer
-                    src={selectedSpeechRecord.data}
-                    onError={() => {}}
-                  />
+           <audio
+             className="w-full"
+             controls
+             src={selectedSpeechRecord.data}
+             style={{ display: "block", width: "100%", minHeight: "40px" }}
+           />
                 </div>
               </div>
             </div>
@@ -2635,4 +2587,4 @@ export default function PatientInfo() {
       )}
     </div>
   );
-}
+ }

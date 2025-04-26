@@ -12,13 +12,14 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File, Header
 from fastapi.responses import FileResponse, StreamingResponse, Response
+from pymongo import mongo_client
 from starlette.background import BackgroundTask
 from jose import jwt
 import cv2
 import torch
 import torchvision.transforms as transforms
 from pydantic import BaseModel
-
+import ffmpeg
 from auth import verify_token
 from keys import SECRET_KEY
 from models.mongodb.EEGDataRecord import EEGDataRecord
@@ -29,6 +30,7 @@ from models.mongodb.VideoDataRecord import VideoRecord
 from pydantic_schemas.FacialDataRecord import FacialDataRecordSchema
 from pydantic_schemas.SpeechDataRecord import SpeechDataRecordSchema
 from utils import inference_yolo, inference_efficientnet, extract_mfcc_features
+from cloud.config import upload_audio_to_cloudinary
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -239,6 +241,128 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
             "success": True}
 
 
+
+# @router.post('/speech/{patient_id}', status_code=status.HTTP_200_OK)
+# async def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(...)):
+#     token = request.headers.get("access_token")
+#     if not token:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
+#     payload = verify_token(token)
+#     if not payload:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+#     result = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+#     if not audio.content_type.startswith("audio"):
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is not an audio file")
+#
+#     patient = Patient.find_by_id(patient_id)
+#     patient_dict = {**patient, "_id": str(patient["_id"])}
+#
+#     if not patient:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+#
+#     filename = f"{patient_id}_{audio.filename}"
+#     file_location = os.path.join(UPLOADS_DIR_SPEECH, filename)
+#
+#     # Read file content asynchronously
+#     contents = await audio.read()
+#     with open(os.path.join(UPLOADS_DIR_SPEECH, filename), "wb") as f:
+#         f.write(contents)
+#
+#     mfcc_features = extract_mfcc_features(file_location)
+#     speech_prediction = audio_model.predict(mfcc_features)
+#
+#     prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
+#     speech_data_record = SpeechDataRecordSchema(patient_id=patient_id, data=file_location,
+#                                                 created_at=str(datetime.now()), prediction=prediction)
+#     speech_record = SpeechRecord(patient_id=patient_id, data=file_location, created_at=datetime.now(),
+#                                  prediction=prediction)
+#     speech_inserted_id = speech_record.save_speech_record()
+#     if not speech_inserted_id:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
+#     patient_dict["speech_data_records"].append(speech_data_record.model_dump())
+#     Patient.update(patient_id, patient_dict)
+#     return {"detail": f"Audio {filename} uploaded successfully.", "prediction": prediction, "patient": str(patient),
+#             "success": True}
+
+# @router.post('/speech/{patient_id}', status_code=status.HTTP_200_OK)
+# async def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(...)):
+#     token = request.headers.get("access_token")
+#     if not token:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token not found")
+#     payload = verify_token(token)
+#     if not payload:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+#
+#     result = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+#
+#     if not audio.content_type.startswith("audio"):
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is not an audio file")
+#
+#     patient = Patient.find_by_id(patient_id)
+#     if not patient:
+#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+#     patient_dict = {**patient, "_id": str(patient["_id"])}
+#
+#     filename = f"{patient_id}_{audio.filename}"
+#     file_location = os.path.join(UPLOADS_DIR_SPEECH, filename)
+#
+#     # Save the uploaded file first
+#     contents = await audio.read()
+#     with open(file_location, "wb") as f:
+#         f.write(contents)
+#
+#     # Check if it is a .webm file
+#     if filename.endswith('.webm'):
+#         # Convert to WAV
+#         wav_filename = filename.replace('.webm', '.wav')
+#         wav_file_location = os.path.join(UPLOADS_DIR_SPEECH, wav_filename)
+#
+#         try:
+#             (
+#                 ffmpeg
+#                 .input(file_location)
+#                 .output(wav_file_location, format='wav')
+#                 .run(quiet=True, overwrite_output=True)
+#             )
+#             os.remove(file_location)  # Delete the original .webm after conversion
+#             file_location = wav_file_location  # Update file location to WAV
+#         except ffmpeg.Error as e:
+#             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Audio conversion failed: {e}")
+#
+#     # Now extract features and predict
+#     mfcc_features = extract_mfcc_features(file_location)
+#     speech_prediction = audio_model.predict(mfcc_features)
+#
+#     prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
+#
+#     speech_data_record = SpeechDataRecordSchema(
+#         patient_id=patient_id,
+#         data=file_location,
+#         created_at=str(datetime.now()),
+#         prediction=prediction
+#     )
+#
+#     speech_record = SpeechRecord(
+#         patient_id=patient_id,
+#         data=file_location,
+#         created_at=datetime.now(),
+#         prediction=prediction
+#     )
+#
+#     speech_inserted_id = speech_record.save_speech_record()
+#     if not speech_inserted_id:
+#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
+#
+#     patient_dict["speech_data_records"].append(speech_data_record.model_dump())
+#     Patient.update(patient_id, patient_dict)
+#
+#     return {
+#         "detail": f"Audio {filename} uploaded successfully.",
+#         "prediction": prediction,
+#         "patient": str(patient),
+#         "success": True
+#     }
+
 @router.post('/speech/{patient_id}', status_code=status.HTTP_200_OK)
 async def upload_speech(patient_id: str, request: Request, audio: UploadFile = File(...)):
     token = request.headers.get("access_token")
@@ -247,39 +371,78 @@ async def upload_speech(patient_id: str, request: Request, audio: UploadFile = F
     payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    
     result = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+
     if not audio.content_type.startswith("audio"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is not an audio file")
 
     patient = Patient.find_by_id(patient_id)
-    patient_dict = {**patient, "_id": str(patient["_id"])}
-
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    patient_dict = {**patient, "_id": str(patient["_id"])}
 
-    filename = f"{patient_id}_{audio.filename}"
-    file_location = os.path.join(UPLOADS_DIR_SPEECH, filename)
-    
-    # Read file content asynchronously
+    # Save the uploaded file temporarily
     contents = await audio.read()
-    with open(os.path.join(UPLOADS_DIR_SPEECH, filename), "wb") as f:
+    temp_filename = f"{patient_id}_{audio.filename}"
+    temp_file_location = os.path.join(UPLOADS_DIR_SPEECH, temp_filename)
+
+    with open(temp_file_location, "wb") as f:
         f.write(contents)
 
-    mfcc_features = extract_mfcc_features(file_location)
-    speech_prediction = audio_model.predict(mfcc_features)
+    # Convert webm to wav if needed
+    if temp_filename.endswith('.webm'):
+        wav_filename = temp_filename.replace('.webm', '.wav')
+        wav_file_location = os.path.join(UPLOADS_DIR_SPEECH, wav_filename)
+        try:
+            (
+                ffmpeg
+                .input(temp_file_location)
+                .output(wav_file_location, format='wav')
+                .run(quiet=True, overwrite_output=True)
+            )
+            os.remove(temp_file_location)  # Remove the original .webm
+            temp_file_location = wav_file_location  # Update to wav file
+        except ffmpeg.Error as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Audio conversion failed: {e}")
 
+    mfcc_features = extract_mfcc_features(temp_file_location)
+    speech_prediction = audio_model.predict(mfcc_features)
     prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
-    speech_data_record = SpeechDataRecordSchema(patient_id=patient_id, data=file_location,
-                                                created_at=str(datetime.now()), prediction=prediction)
-    speech_record = SpeechRecord(patient_id=patient_id, data=file_location, created_at=datetime.now(),
-                                 prediction=prediction)
+
+    try:
+        audio_url = await upload_audio_to_cloudinary(contents, patient_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to upload to Cloudinary: {e}")
+
+    os.remove(temp_file_location)
+
+    speech_data_record = SpeechDataRecordSchema(
+        patient_id=patient_id,
+        data=audio_url,
+        created_at=str(datetime.now()),
+        prediction=prediction
+    )
+
+    speech_record = SpeechRecord(
+        patient_id=patient_id,
+        data=audio_url,
+        created_at=datetime.now(),
+        prediction=prediction
+    )
+
     speech_inserted_id = speech_record.save_speech_record()
     if not speech_inserted_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
+
     patient_dict["speech_data_records"].append(speech_data_record.model_dump())
     Patient.update(patient_id, patient_dict)
-    return {"detail": f"Audio {filename} uploaded successfully.", "prediction": prediction, "patient": str(patient),
-            "success": True}
+    return {
+        "detail": f"Audio {audio.filename} uploaded and processed successfully.",
+        "prediction": prediction,
+        "record": speech_data_record.model_dump(),
+        "success": True
+    }
 
 
 @router.post('/eeg/{patient_id}', status_code=status.HTTP_200_OK)

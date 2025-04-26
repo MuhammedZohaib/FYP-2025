@@ -29,3 +29,4 @@ av  # for video decoding
 tqdm  # for progress bars
 pillow>=9.0.0  # for image processing
 einops  # for tensor operations
+ffmpeg-python
