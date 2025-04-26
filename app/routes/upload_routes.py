@@ -1,27 +1,20 @@
 import os
 import logging
 from datetime import datetime
-import re
 import mimetypes
-from typing import Dict, Optional
+from typing import Dict
 
-import logging
-
-from cloudinary.uploader import upload
-from cloudinary.utils import cloudinary_api_download_url
 import joblib
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File, Header
-from fastapi.responses import FileResponse, StreamingResponse, Response
-from pymongo import mongo_client
-from starlette.background import BackgroundTask
+from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
 from jose import jwt
 import cv2
 import torch
 import torchvision.transforms as transforms
 from pydantic import BaseModel
 import ffmpeg
+
 from auth import verify_token
 from keys import SECRET_KEY
 from models.mongodb.EEGDataRecord import EEGDataRecord
@@ -39,18 +32,6 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn")
 
-# Make sure we can identify video files correctly
-mimetypes.init()
-mimetypes.add_type('video/mp4', '.mp4')
-mimetypes.add_type('video/webm', '.webm')
-mimetypes.add_type('video/x-msvideo', '.avi')
-mimetypes.add_type('video/quicktime', '.mov')
-# Add common audio types
-mimetypes.add_type('audio/mpeg', '.mp3')
-mimetypes.add_type('audio/wav', '.wav')
-mimetypes.add_type('audio/ogg', '.ogg')
-mimetypes.add_type('audio/aac', '.aac')
-
 # Constants
 YOLO_WEIGHTAGE = 0.6
 EFFICIENTNET_WEIGHTAGE = 0.4
@@ -62,30 +43,21 @@ speech_cue_model = 'models/ml/weights/svc_speech_model.pkl'
 audio_model = joblib.load(speech_cue_model)
 
 CURRENT_DIR = os.getcwd()
-
 UPLOADS_DIR = os.path.join(CURRENT_DIR, "uploads")
-if not os.path.exists(UPLOADS_DIR):
-    os.makedirs(UPLOADS_DIR)
-
 UPLOADS_DIR_SPEECH = os.path.join(CURRENT_DIR, "uploads/speech")
-if not os.path.exists(UPLOADS_DIR_SPEECH):
-    os.makedirs(UPLOADS_DIR_SPEECH)
-
 UPLOADS_DIR_VIDEO = os.path.join(CURRENT_DIR, "uploads/video")
-if not os.path.exists(UPLOADS_DIR_VIDEO):
-    os.makedirs(UPLOADS_DIR_VIDEO)
 
-# Model loading status and global variables
+for directory in [UPLOADS_DIR, UPLOADS_DIR_SPEECH, UPLOADS_DIR_VIDEO]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
 model_status: Dict[str, bool] = {
     "is_loading": False,
     "is_ready": False,
     "error": None
 }
 
-# Initialize global model variable
 model = None
-
-# Load the video model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Using device: {device}")
 
@@ -112,7 +84,6 @@ async def load_video_model():
     finally:
         model_status["is_loading"] = False
 
-# Load model on startup
 @router.on_event("startup")
 async def startup_event():
     logger.info("Loading video model on startup...")
@@ -382,40 +353,29 @@ async def predict(patient_id: str, data: dict, request: Request):
 
 
 def process_video(file_bytes: bytes):
-    # Create a temporary file with .mp4 extension
     temp_file = "temp_video.mp4"
     try:
-        # Save bytes to temporary file
         with open(temp_file, "wb") as f:
             f.write(file_bytes)
 
-        # Read video using cv2.VideoCapture with explicit API preference
         cap = cv2.VideoCapture(temp_file, cv2.CAP_ANY)
-        
         if not cap.isOpened():
             raise ValueError("Failed to open video file")
 
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if frame_count <= 0:
             raise ValueError("Empty or unreadable video")
-
-        logger.info(f"Original video has {frame_count} frames")
             
-        # According to the error, SlowFast expects:
-        # - Slow pathway with 9 frames
-        # - Fast pathway with 33 frames (not 64)
-        slow_frame_count = 8  # Try with 8
-        alpha = 4  # Ratio between fast and slow
-        fast_frame_count = slow_frame_count * alpha  # Should be 32
+        slow_frame_count = 8
+        alpha = 4
+        fast_frame_count = slow_frame_count * alpha
         
-        # Extract frames from the video
         all_frames = []
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
                 
-            # Convert grayscale to RGB if needed
             if frame.ndim == 2:
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
             elif frame.shape[2] == 1:
@@ -423,53 +383,34 @@ def process_video(file_bytes: bytes):
             elif frame.shape[2] == 3:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-            # Transform frame and append
             all_frames.append(transform(frame))
             
         cap.release()
         
-        logger.info(f"Extracted {len(all_frames)} frames from video")
-        
-        # If not enough frames, duplicate the last frame
         if len(all_frames) < fast_frame_count:
             last_frame = all_frames[-1] if all_frames else torch.zeros((3, *FRAME_SIZE))
             while len(all_frames) < fast_frame_count:
                 all_frames.append(last_frame)
         
-        # Ensure we have evenly spaced frames for both pathways
         total_frames = len(all_frames)
         indices_slow = np.linspace(0, total_frames - 1, slow_frame_count, dtype=int)
         indices_fast = np.linspace(0, total_frames - 1, fast_frame_count, dtype=int)
         
-        logger.info(f"Sampling {slow_frame_count} frames for slow pathway at indices: {indices_slow}")
-        logger.info(f"Sampling {fast_frame_count} frames for fast pathway at indices: {indices_fast}")
-        
-        # Sample frames for each pathway
         slow_frames = [all_frames[i] for i in indices_slow]
         fast_frames = [all_frames[i] for i in indices_fast]
         
-        # Stack frames into tensors
-        slow_pathway = torch.stack(slow_frames).permute(1, 0, 2, 3).unsqueeze(0)  # [1, C, T, H, W]
-        fast_pathway = torch.stack(fast_frames).permute(1, 0, 2, 3).unsqueeze(0)  # [1, C, T*alpha, H, W]
+        slow_pathway = torch.stack(slow_frames).permute(1, 0, 2, 3).unsqueeze(0)
+        fast_pathway = torch.stack(fast_frames).permute(1, 0, 2, 3).unsqueeze(0)
         
-        logger.info(f"Slow pathway shape: {slow_pathway.shape}")
-        logger.info(f"Fast pathway shape: {fast_pathway.shape}")
-        
-        # Let's try to match the exact tensor dimensions from error message
         if slow_pathway.shape[2] != 8 or fast_pathway.shape[2] != 32:
-            logger.warning(f"Adjusting tensor dimensions to match expected values")
-            # If we don't have exactly the right number of frames, adjust by interpolation
             if slow_pathway.shape[2] > 8:
-                # Downsample if we have too many frames
                 slow_indices = np.linspace(0, slow_pathway.shape[2]-1, 8, dtype=int)
                 slow_pathway = slow_pathway[:, :, slow_indices, :, :]
             elif slow_pathway.shape[2] < 8:
-                # Repeat frames if we have too few
                 repeats = int(np.ceil(8 / slow_pathway.shape[2]))
                 slow_pathway = slow_pathway.repeat(1, 1, repeats, 1, 1)
                 slow_pathway = slow_pathway[:, :, :8, :, :]
                 
-            # Same for fast pathway
             if fast_pathway.shape[2] > 32:
                 fast_indices = np.linspace(0, fast_pathway.shape[2]-1, 32, dtype=int)
                 fast_pathway = fast_pathway[:, :, fast_indices, :, :]
@@ -478,17 +419,12 @@ def process_video(file_bytes: bytes):
                 fast_pathway = fast_pathway.repeat(1, 1, repeats, 1, 1)
                 fast_pathway = fast_pathway[:, :, :32, :, :]
         
-        logger.info(f"Final slow pathway shape: {slow_pathway.shape}")
-        logger.info(f"Final fast pathway shape: {fast_pathway.shape}")
-        
-        # Move tensors to the correct device
         return [slow_pathway.to(device), fast_pathway.to(device)]
 
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}")
         raise
     finally:
-        # Clean up temp file
         if os.path.exists(temp_file):
             try:
                 os.remove(temp_file)
@@ -503,37 +439,24 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
             detail="Invalid file format. Please upload MP4, AVI, or MOV files only."
         )
 
-    # Read file content
     contents = await file.read()
     
     try:
-        # Check if model is ready
         if not model:
             raise ValueError("Video model is not loaded. Please try again later.")
             
-        # Process video and get tensors for SlowFast model
         pathway_tensors = process_video(contents)
             
-        # Make prediction
         with torch.no_grad():
             with torch.autocast(device_type=device.type):
-                outputs = model(pathway_tensors)  # Pass the list of tensors directly
+                outputs = model(pathway_tensors)
                 probs = torch.softmax(outputs, dim=1)
                 confidence, pred = torch.max(probs, dim=1)
                 label = "HL-ASD" if pred.item() == 1 else "Typical"
                 confidence = confidence.item()
 
-        # # Save file
-        # filename = f"{patient_id}_{file.filename}"
-        # file_path = os.path.join(UPLOADS_DIR_VIDEO, filename)
-        # with open(file_path, "wb") as f:
-        #     f.write(contents)
-        try:
-            cloudinary_url = await upload_video_to_cloudinary(contents, patient_id)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        cloudinary_url = await upload_video_to_cloudinary(contents, patient_id)
 
-        # Create and save record
         record = VideoRecord(
             patient_id=patient_id,
             data=cloudinary_url,
@@ -550,14 +473,12 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
                 detail="Failed to save video record"
             )
 
-        # Get patient to update the patient record
         patient = Patient.find_by_id(patient_id)
         if not patient:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
         patient_dict = {**patient, "_id": str(patient["_id"])}
         
-        # Create record for patient object
         video_data_record = VideoDataRecordSchema(
             patient_id=patient_id,
             data=cloudinary_url,
@@ -566,13 +487,10 @@ async def upload_video(patient_id: str, file: UploadFile = File(...)):
             confidence=confidence * 1.3
         )
         
-        # Add to patient's records
         if "video_records" not in patient_dict:
             patient_dict["video_records"] = []
             
         patient_dict["video_records"].append(video_data_record.model_dump())
-        
-        # Update patient
         Patient.update(patient_id, patient_dict)
 
         return {
@@ -598,235 +516,3 @@ async def get_video_model_status(request: Request):
     if not model_status["is_ready"] and not model_status["is_loading"]:
         await load_video_model()
     return model_status
-
-@router.get('/files/{file_path:path}')
-async def get_upload_file(
-    file_path: str,
-    request: Request,
-    access_token: str = None,
-    range: Optional[str] = Header(None)
-):
-    """Serve static files from the uploads directory with range request support"""
-    logger.info(f"File request received for path: {file_path}")
-    logger.info(f"Range header: {range}")
-    token = access_token or request.headers.get("access_token")
-    
-    # Clean the file_path to prevent potential directory traversal issues
-    secure_file_path = os.path.normpath(os.path.join('/', file_path)).lstrip('/')
-    logger.info(f"Normalized file path: {secure_file_path}")
-
-    try:
-        # Verify token
-        if not token or not verify_token(token):
-            logger.warning(f"Invalid or missing token for file request: {file_path}")
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-        # Determine base directory and relative path
-        if secure_file_path.startswith("speech/"):
-            base_dir = UPLOADS_DIR_SPEECH
-            relative_path = secure_file_path.replace("speech/", "", 1)
-        elif secure_file_path.startswith("video/"):
-            base_dir = UPLOADS_DIR_VIDEO
-            relative_path = secure_file_path.replace("video/", "", 1)
-        else:
-            # Try to infer the correct directory based on file extension
-            ext = os.path.splitext(secure_file_path)[1].lower()
-            if ext in ['.wav', '.mp3', '.ogg', '.aac']:
-                base_dir = UPLOADS_DIR_SPEECH
-                relative_path = secure_file_path
-            elif ext in ['.mp4', '.avi', '.mov', '.webm']:
-                base_dir = UPLOADS_DIR_VIDEO
-                relative_path = secure_file_path
-            else:
-                base_dir = UPLOADS_DIR
-                relative_path = secure_file_path
-
-        # Try multiple path combinations
-        possible_paths = [
-            os.path.abspath(os.path.join(base_dir, relative_path)),  # Direct path
-            os.path.abspath(os.path.join(UPLOADS_DIR, secure_file_path)),  # Full path from uploads
-            os.path.abspath(os.path.join(base_dir, os.path.basename(relative_path)))  # Just filename
-        ]
-
-        logger.info(f"Trying possible file paths:")
-        for path in possible_paths:
-            logger.info(f"- {path}")
-            if os.path.exists(path) and os.path.isfile(path):
-                full_path = path
-                logger.info(f"Found file at: {full_path}")
-                break
-        else:
-            logger.error(f"File not found in any of the attempted paths")
-            logger.info(f"Base directory contents ({base_dir}):")
-            if os.path.exists(base_dir):
-                for f in os.listdir(base_dir):
-                    logger.info(f"- {f}")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-
-        # Security check: Ensure the resolved path is within allowed directories
-        if not any(full_path.startswith(os.path.abspath(d)) for d in [UPLOADS_DIR, UPLOADS_DIR_SPEECH, UPLOADS_DIR_VIDEO]):
-            logger.error(f"Attempt to access file outside designated directories: {full_path}")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
-        # Guess content type
-        content_type, _ = mimetypes.guess_type(full_path)
-        if not content_type:
-            content_type = 'application/octet-stream'
-        logger.info(f"Determined Content-Type: {content_type} for file: {full_path}")
-
-        # If it's a video or audio file, use range support
-        if content_type.startswith('video/') or content_type.startswith('audio/'):
-            logger.info(f"Serving {content_type} with range support")
-            return await send_file_with_range_support(full_path, range)
-
-        # For all other files, use FileResponse
-        logger.info(f"Serving {content_type} using FileResponse")
-        return FileResponse(
-            path=full_path,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, OPTIONS",
-                "Access-Control-Allow-Headers": "Range, Content-Type, X-Requested-With, access_token",
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error serving file '{file_path}': {str(e)}", exc_info=True)
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error serving file: {str(e)}")
-
-# File streaming utility functions
-def get_video_path(filename: str) -> str:
-    """Find a video file with exact match or partial match if needed"""
-    # Try direct path first
-    full_path = os.path.join(UPLOADS_DIR_VIDEO, filename)
-    if os.path.exists(full_path):
-        return full_path
-    
-    # If filename contains an underscore (has patient_id prefix), we can try as-is
-    if "_" in filename:
-        return full_path
-        
-    # Search for a matching file
-    for file in os.listdir(UPLOADS_DIR_VIDEO):
-        if filename in file:
-            return os.path.join(UPLOADS_DIR_VIDEO, file)
-            
-    # If no match found, raise exception
-    raise FileNotFoundError(f"Video file not found: {filename}")
-
-async def send_file_with_range_support(
-    path: str, 
-    range_header: Optional[str] = None
-) -> StreamingResponse:
-    """Stream a file with support for HTTP Range requests"""
-    
-    file_size = os.path.getsize(path)
-    
-    # Determine content type
-    content_type, _ = mimetypes.guess_type(path)
-    if not content_type:
-        content_type = 'application/octet-stream'
-    
-    headers = {
-        'Accept-Ranges': 'bytes',
-        'Content-Type': content_type,
-        'Content-Length': str(file_size),
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Range, Content-Type, X-Requested-With, access_token',
-    }
-    
-    start_byte = 0
-    end_byte = file_size - 1
-    status_code = 200
-    
-    # Handle range request
-    if range_header:
-        try:
-            # Parse range header
-            range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
-            if range_match:
-                start_byte = int(range_match.group(1))
-                end_str = range_match.group(2)
-                # If end byte is specified, use it, otherwise use the full file size
-                end_byte = int(end_str) if end_str else file_size - 1
-                
-                # Validate range
-                if start_byte >= file_size:
-                    # If range is unsatisfiable
-                    headers['Content-Range'] = f'bytes */{file_size}'
-                    return Response(status_code=416, headers=headers)
-                
-                if end_byte >= file_size:
-                    end_byte = file_size - 1
-                    
-                # Calculate content length
-                headers['Content-Length'] = str(end_byte - start_byte + 1)
-                headers['Content-Range'] = f'bytes {start_byte}-{end_byte}/{file_size}'
-                status_code = 206  # Partial content
-        except ValueError:
-            # If there's an error parsing the range, ignore it and send full file
-            pass
-    
-    # Define the file streaming generator
-    async def file_sender():
-        with open(path, 'rb') as video_file:
-            # Seek to start byte
-            video_file.seek(start_byte)
-            # Read and yield chunks from start to end
-            chunk_size = 1024 * 1024  # 1MB chunks
-            bytes_to_read = end_byte - start_byte + 1
-            
-            while bytes_to_read > 0:
-                chunk = video_file.read(min(chunk_size, bytes_to_read))
-                if not chunk:
-                    break
-                yield chunk
-                bytes_to_read -= len(chunk)
-    
-    return StreamingResponse(
-        file_sender(),
-        status_code=status_code,
-        headers=headers,
-        media_type=content_type
-    )
-
-@router.get('/stream-video/{filename}')
-async def stream_video(
-    filename: str, 
-    request: Request, 
-    access_token: str = None,
-    range: Optional[str] = Header(None)
-):
-    """Stream video with proper range request support"""
-    try:
-        # Verify token - check both query param and header
-        token = access_token or request.headers.get("access_token")
-        if not token or not verify_token(token):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-        try:
-            # Get video file path
-            file_path = get_video_path(filename)
-            # Return streaming response with range support
-            return await send_file_with_range_support(file_path, range)
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail="Video file not found")
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logger.error(f"Error streaming video: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error streaming video: {str(e)}")
-
-@router.options('/stream-video/{filename}')
-@router.options('/files/{file_path:path}')
-async def options_handler():
-    """Handle CORS preflight requests with longer cache time"""
-    headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Range, Content-Type, X-Requested-With, access_token",
-        "Access-Control-Max-Age": "86400",  # 24 hours
-    }
-    return Response(status_code=204, headers=headers)
