@@ -109,154 +109,6 @@ interface TableColumn<T> {
   accessor: (item: T, index?: number) => string;
 }
 
-// Helper function to extract filename from path
-const extractFilename = (path: string | undefined): string => {
-  if (!path) {
-    return "";
-  }
-
-  console.log("Extracting filename from path:", path);
-
-  // Handle different path formats
-  if (path.includes("uploads/speech/")) {
-    return path.split("uploads/speech/").pop() || "";
-  } else if (path.includes("uploads/video/")) {
-    return path.split("uploads/video/").pop() || "";
-  } else if (path.includes("/")) {
-    return path.split("/").pop() || "";
-  }
-
-  // If no slashes, assume it's already just the filename
-  return path;
-};
-
-// Video Player Component with improved format compatibility
-const VideoPlayer = React.memo(
-  ({
-    src,
-    poster,
-    onError,
-  }: {
-    src: string;
-    poster?: string;
-    onError?: (error: string) => void;
-  }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { token } = useAuth();
-
-    const getVideoUrl = (videoPath: string) => {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const accessToken = localStorage.getItem("access_token");
-
-      // Extract the relative path (e.g., video/filename.mp4)
-      let relativePath = videoPath;
-      if (videoPath.includes("/uploads/")) {
-        // Find the part after "/uploads/"
-        const parts = videoPath.split("/uploads/");
-        if (parts.length > 1) {
-          relativePath = parts[1];
-        }
-      } else if (videoPath.startsWith("/")) {
-        // Remove leading slash if it's an absolute path from root (less likely)
-        relativePath = videoPath.substring(1);
-      }
-
-      // Construct the API URL
-      const url = new URL(`${baseUrl}/api/files/${relativePath}`);
-
-      // Append tokens
-      if (token) {
-        url.searchParams.append("token", token);
-      }
-      if (accessToken) {
-        url.searchParams.append("access_token", accessToken);
-      }
-
-      console.log("Generated video URL:", url.toString());
-      return url.toString();
-    };
-
-    const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-      const videoElement = e.currentTarget;
-      const errorMessage = videoElement.error
-        ? `Video error: ${videoElement.error.message} (code: ${videoElement.error.code})`
-        : "Unknown video playback error";
-
-      console.error("Video playback error:", {
-        error: videoElement.error,
-        src: videoElement.src,
-        readyState: videoElement.readyState,
-      });
-
-      setError(errorMessage);
-      setLoading(false);
-
-      if (onError) {
-        onError(errorMessage);
-      }
-    };
-
-    const handleLoadedData = () => {
-      setLoading(false);
-      setError(null);
-    };
-
-    useEffect(() => {
-      // Reset states when source changes
-      setLoading(true);
-      setError(null);
-    }, [src]);
-
-    return (
-      <div className="video-player-container relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
-            <div className="text-red-500 text-center mb-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 mx-auto mb-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {error}
-            </div>
-            <div className="text-sm text-gray-500">Source: {src}</div>
-          </div>
-        )}
-
-        <video
-          ref={videoRef}
-          className="w-full h-auto"
-          controls
-          src={getVideoUrl(src)}
-          poster={poster}
-          onLoadedData={handleLoadedData}
-          onError={handleError}
-        />
-      </div>
-    );
-  }
-);
-
-VideoPlayer.displayName = "VideoPlayer";
-
 interface EditProfileFormData {
   name: string;
   email: string;
@@ -1022,20 +874,28 @@ export default function PatientInfo() {
       if (data.success) {
         const newRecord: VideoRecord = {
           id: String(Date.now()),
-          data: data.file_location,
+          data: data.data,
           prediction: data.prediction,
           created_at: new Date().toISOString(),
           confidence: data.confidence,
         };
 
         // Update patient's video records
-        setPatient((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            video_records: [...(prev.video_records || []), newRecord],
-          };
-        });
+        // setPatient((prev) => {
+        //   if (!prev) return prev;
+        //   return {
+        //     ...prev,
+        //     video_records: [...(prev.video_records || []), newRecord],
+        //   };
+        // });
+        
+        setPredictions(prev => ({
+          ...prev,
+          video_data_records: [
+            ...prev.video_data_records,
+            data.record
+          ]
+        }))
 
         setShowVideoModal(false);
         setVideoFile(null);
@@ -2304,14 +2164,6 @@ export default function PatientInfo() {
                 </p>
               </div>
 
-              {/* Display audio path */}
-              {/* <div className="bg-[#1a1a1a] p-3 rounded mb-4 overflow-auto max-h-[100px]"> */}
-              {/*   <p className="text-gray-400 text-sm mb-1">File path:</p> */}
-              {/*   <code className="text-xs text-gray-300"> */}
-              {/*     {selectedSpeechRecord.data} */}
-              {/*   </code> */}
-              {/* </div> */}
-
               <div className="mb-4">
                 <p className="text-gray-400 mb-2">Prediction:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
@@ -2357,11 +2209,11 @@ export default function PatientInfo() {
               </div>
 
               <div className="mb-4">
-                <VideoPlayer
+                  <video
+                  className="max-w-full max-h-[400px] w-full h-auto"
+                  controls
                   src={selectedVideoRecord.data}
-                  poster={selectedVideoRecord.data}
-                  onError={() => {}}
-                />
+                  />
               </div>
 
               {/* Display video info */}
