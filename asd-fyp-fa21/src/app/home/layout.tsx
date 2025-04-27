@@ -12,11 +12,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={inter.className}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-        {children}
-      </ThemeProvider>
-      <Toaster />
-    </div>
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          {children}
+        </ThemeProvider>
+        <Toaster />
+      </body>
+    </html>
   );
 }
