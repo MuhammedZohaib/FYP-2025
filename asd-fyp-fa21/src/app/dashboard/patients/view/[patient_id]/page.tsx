@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, JSX } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Home,
@@ -28,7 +28,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
 import React from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import AudioUploader from "@/components/AudioUploader";
 
 interface Patient {
@@ -59,7 +58,7 @@ interface Patient {
 interface SpeechRecord {
   _id?: any;
   confidence?: any;
-  created_at?: any;
+  created_at: string;
   patient_id: string;
   data: string;
   prediction: "HL-ASD" | "Typical";
@@ -512,11 +511,6 @@ export default function PatientInfo() {
 
   const [showEEGModal, setShowEEGModal] = useState(false);
   const [showSpeechModal, setShowSpeechModal] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [showFacialModal, setShowFacialModal] = useState(false);
   const [showMultimodalModal, setShowMultimodalModal] = useState(false);
@@ -544,7 +538,6 @@ export default function PatientInfo() {
     useState<VideoRecord | null>(null);
   const [showVideoPlayerModal, setShowVideoPlayerModal] = useState(false);
 
-  // Facial Record States
   const [facialFile, setFacialFile] = useState<File | null>(null);
   const [isFacialUploading, setIsFacialUploading] = useState(false);
   const [facialUploadError, setFacialUploadError] = useState<string | null>(
@@ -553,7 +546,6 @@ export default function PatientInfo() {
   const [facialDragActive, setFacialDragActive] = useState(false);
   const facialFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Multimodal Record States
   const [multimodalFile, setMultimodalFile] = useState<File | null>(null);
   const [multimodalEEGData, setMultimodalEEGData] = useState<EEGRecord | null>(
     null
@@ -565,7 +557,8 @@ export default function PatientInfo() {
   const [multimodalDragActive, setMultimodalDragActive] = useState(false);
   const multimodalFileInputRef = useRef<HTMLInputElement>(null);
 
-  const router = useRouter();
+  const [showFacialPreview, setShowFacialPreview] = useState<boolean>(false)
+  const [selectedFacialRecord, setSelectedFacialRecord] = useState<FacialRecord | null>(null)
 
   useEffect(() => {
     async function fetchPatient() {
@@ -647,8 +640,6 @@ export default function PatientInfo() {
           ? data.facial_predictions
           : [];
 
-        console.log("Facial predictions:", facialPredictions);
-
         // Format facial records for the state
         const formattedFacialRecords = facialPredictions.map((record: any) => ({
           id: record.id || String(Date.now()),
@@ -682,21 +673,21 @@ export default function PatientInfo() {
             id: record.id || String(Date.now()),
             data: record.data || "",
             prediction: record.prediction || "unknown",
-            created_at: record.created_at || new Date().toISOString(),
+            created_at: record.created_at || "-",
             confidence: record.confidence || 0,
           })),
           video_data_records: videoPredictions.map((record: any) => ({
             id: record.id || String(Date.now()),
             data: record.data || "",
             prediction: record.prediction || "unknown",
-            created_at: record.created_at || new Date().toISOString(),
+            created_at: record.created_at || "-",
             confidence: record.confidence || 0,
           })),
           facial_data_records: facialPredictions.map((record: any) => ({
             id: record.id || String(Date.now()),
             data: record.data || "",
             prediction: record.prediction || "unknown",
-            created_at: record.created_at || new Date().toISOString(),
+            created_at: record.created_at || "-", 
             confidence: record.confidence || 0,
           })),
         });
@@ -717,43 +708,43 @@ export default function PatientInfo() {
     }
   }, [patient_id]);
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      if (files[0].type.startsWith("audio/")) {
-        setUploadFile(files[0]);
-        toast.success("Audio file selected successfully");
-      } else {
-        toast.error("Please upload an audio file");
-      }
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      if (files[0].type.startsWith("audio/")) {
-        setUploadFile(files[0]);
-        toast.success("Audio file selected successfully");
-      } else {
-        toast.error("Please upload an audio file");
-      }
-    }
-  };
+  // const handleDrag = (e: React.DragEvent) => {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   if (e.type === "dragenter" || e.type === "dragover") {
+  //     setDragActive(true);
+  //   } else if (e.type === "dragleave") {
+  //     setDragActive(false);
+  //   }
+  // };
+  //
+  // const handleDrop = (e: React.DragEvent) => {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   setDragActive(false);
+  //
+  //   const files = Array.from(e.dataTransfer.files);
+  //   if (files.length > 0) {
+  //     if (files[0].type.startsWith("audio/")) {
+  //       setUploadFile(files[0]);
+  //       toast.success("Audio file selected successfully");
+  //     } else {
+  //       toast.error("Please upload an audio file");
+  //     }
+  //   }
+  // };
+  //
+  // const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const files = e.target.files;
+  //   if (files && files[0]) {
+  //     if (files[0].type.startsWith("audio/")) {
+  //       setUploadFile(files[0]);
+  //       toast.success("Audio file selected successfully");
+  //     } else {
+  //       toast.error("Please upload an audio file");
+  //     }
+  //   }
+  // };
 
   const handleEEGUpload = async (data: EEGRecord) => {
     try {
@@ -866,23 +857,6 @@ export default function PatientInfo() {
       }
 
       if (data.success) {
-        const newRecord: VideoRecord = {
-          id: String(Date.now()),
-          data: data.data,
-          prediction: data.prediction,
-          created_at: new Date().toISOString(),
-          confidence: data.confidence,
-        };
-
-        // Update patient's video records
-        // setPatient((prev) => {
-        //   if (!prev) return prev;
-        //   return {
-        //     ...prev,
-        //     video_records: [...(prev.video_records || []), newRecord],
-        //   };
-        // });
-
         setPredictions((prev) => ({
           ...prev,
           video_data_records: [...prev.video_data_records, data.record],
@@ -893,10 +867,9 @@ export default function PatientInfo() {
         setVideoDragActive(false);
         toast.success(data.detail || "Video record uploaded successfully");
 
-        // Show prediction toast with confidence
         const confidencePercent =
-          data.confidence !== undefined
-            ? (data.confidence * 100).toFixed(1)
+          data.record.confidence !== undefined
+            ? (data.record.confidence * 100).toFixed(1)
             : "N/A";
 
         toast.info(
@@ -1008,6 +981,11 @@ export default function PatientInfo() {
     console.log("Opening speech player for record:", record);
   };
 
+  const openFacialPreview = (record: FacialRecord) => {
+    setSelectedFacialRecord(record)
+    setShowFacialPreview(true)
+  }
+
   // Open video player modal
   const openVideoPlayer = (record: VideoRecord) => {
     setSelectedVideoRecord(record);
@@ -1082,68 +1060,24 @@ export default function PatientInfo() {
       }
 
       if (data.success) {
-        // Get inference from the predictions endpoint
-        const inferenceResponse = await fetch(
-          `http://localhost:8000/api/patient/${patient_id}/predictions`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              access_token: accessToken || "",
-            },
-          }
-        );
+        setPredictions((prev) => ({
+          ...prev,
+          facial_data_records: [...prev.facial_data_records, {
+          id: data.record.id || String(Date.now()),
+          data: data.record.data || "",
+          prediction: data.record.prediction || "unknown",
+          created_at: data.record.date || new Date().toISOString(),
+          confidence: data.record.confidence || 0,
+          }]
+        }))
 
-        const inferenceData = await inferenceResponse.json();
-
-        if (!inferenceResponse.ok) {
-          throw new Error("Failed to get facial inference");
-        }
-
-        // Get the latest facial prediction from the predictions response
-        const latestFacialPrediction =
-          inferenceData.facial_predictions?.[
-            inferenceData.facial_predictions.length - 1
-          ];
-
-        const newRecord: FacialRecord = {
-          id: String(Date.now()),
-          data: data.data,
-          created_at: new Date().toISOString(),
-          prediction: latestFacialPrediction?.prediction || data.prediction,
-          confidence: latestFacialPrediction?.confidence || data.confidence,
-        };
-
-        setPatient((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            facial_data_records: [
-              ...(prev.facial_data_records || []),
-              newRecord,
-            ],
-          };
-        });
+        toast.success("Facial Prediction Successful", {
+          duration: 5000
+        })
 
         setShowFacialModal(false);
         setFacialFile(null);
         setFacialDragActive(false);
-        toast.success("Facial record uploaded successfully");
-
-        // Show prediction toast with confidence
-        if (latestFacialPrediction) {
-          const confidencePercent =
-            latestFacialPrediction.confidence !== undefined
-              ? (latestFacialPrediction.confidence * 100).toFixed(1)
-              : "N/A";
-
-          toast.info(
-            `Prediction: ${latestFacialPrediction.prediction} (${confidencePercent}% confidence)`,
-            {
-              duration: 5000,
-            }
-          );
-        }
       }
     } catch (error: any) {
       console.error("Error uploading facial record:", error);
@@ -1332,7 +1266,7 @@ export default function PatientInfo() {
                 {columns.map((column, j) => (
                   <td
                     key={j}
-                    className="px-6 py-4 text-sm text-gray-300 whitespace-nowrap"
+                    className="px-6 py-4 text-sm text-gray-300 max-w-[300px] overflow-hidden whitespace-nowrap"
                   >
                     {column.accessor(record, i)}
                   </td>
@@ -1365,7 +1299,7 @@ export default function PatientInfo() {
         header: "File Name",
         accessor: (rec: SpeechRecord) => {
           if (!rec.data) return "-";
-          return rec.data;
+          return rec.data.split('/').pop()
         },
       },
       {
@@ -1375,7 +1309,7 @@ export default function PatientInfo() {
       {
         header: "Created At",
         accessor: (rec: SpeechRecord) =>
-          new Date(rec.created_at).toDateString(),
+          new Date(rec.created_at.substring(0, 23)).toDateString(),
       },
       {
         header: "Actions",
@@ -1427,7 +1361,7 @@ export default function PatientInfo() {
         {
           header: "Created At",
           accessor: (rec: VideoRecord) =>
-            new Date(rec.created_at).toLocaleString(),
+            new Date(rec.created_at.substring(0, 23)).toDateString(),
         },
         {
           header: "Actions",
@@ -1671,7 +1605,7 @@ export default function PatientInfo() {
                 </Button>
               </div>
               {renderTable(
-                patient.facial_data_records as FacialRecord[],
+                predictions.facial_data_records as FacialRecord[],
                 [
                   {
                     header: "Record #",
@@ -1679,7 +1613,7 @@ export default function PatientInfo() {
                   },
                   {
                     header: "File Location",
-                    accessor: (rec: FacialRecord) => rec.data || "-",
+                    accessor: (rec: FacialRecord) => rec.data?.split('/').pop() || "-",
                   },
                   {
                     header: "Prediction",
@@ -1696,8 +1630,23 @@ export default function PatientInfo() {
                   {
                     header: "Created At",
                     accessor: (rec: FacialRecord) =>
-                      new Date(rec.created_at).toLocaleString(),
+                      new Date(rec.created_at.substring(0, 23)).toDateString(),
                   },
+                  {
+                    header: "Actions",
+                    accessor: (rec: FacialRecord) => {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          onClick={() => openFacialPreview(rec)}
+                        >
+                          <Eye size={18} />
+                        </Button>
+                      );
+                    }
+                  }
                 ] as TableColumn<FacialRecord>[]
               )}
             </div>
@@ -2122,6 +2071,49 @@ export default function PatientInfo() {
         </div>
       )}
 
+
+      {showFacialPreview && selectedFacialRecord &&(
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-lg">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Facial Data Preview</h2>
+                <button
+                  onClick={() => {
+                    setShowFacialPreview(false);
+                    }
+                  }
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-400 mb-2">Created At:</p>
+                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                  {new Date(selectedFacialRecord.created_at).toDateString()}
+                </p>
+              </div>
+
+              <div className="flex justify-center mb-4">
+                <div className="w-full bg-[#1a1a1a] p-3 rounded">
+                  <img
+                    className="w-full"
+                    src={selectedFacialRecord.data}
+                    style={{
+                      display: "block",
+                      objectFit: "contain",
+                      maxHeight: "500px",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Speech Player Modal */}
       {showSpeechPlayerModal && selectedSpeechRecord && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -2145,7 +2137,7 @@ export default function PatientInfo() {
 
               <div className="mb-4">
                 <p className="text-gray-400 mb-2">Filename:</p>
-                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                <p className="text-white overflow-hidden bg-[#1a1a1a] p-2 rounded">
                   {selectedSpeechRecord.data &&
                     selectedSpeechRecord.data.split("/").pop()}
                 </p>

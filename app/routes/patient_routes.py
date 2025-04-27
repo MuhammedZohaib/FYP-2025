@@ -150,7 +150,7 @@ def get_predictions(patient_id: str, request: Request):
             "id": str(record["_id"]),
             "data": record.get("data", ""),
             "prediction": record.get("prediction", "unknown"),
-            "created_at": record.get("created_at", "")
+            "created_at": record.get("date", "")
         } for record in speech_records
     ]
     
@@ -163,7 +163,7 @@ def get_predictions(patient_id: str, request: Request):
             "id": str(record["_id"]),
             "data": record.get("data", ""),
             "prediction": record.get("prediction", "unknown"),
-            "created_at": record.get("created_at", ""),
+            "created_at": record.get("date", ""),
             "confidence": record.get("confidence", 0)
         } for record in video_records
     ]

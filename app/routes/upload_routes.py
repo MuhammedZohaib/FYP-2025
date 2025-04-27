@@ -1,7 +1,6 @@
 import os
 import logging
 from datetime import datetime
-import mimetypes
 from typing import Dict
 
 import joblib
@@ -25,7 +24,7 @@ from models.mongodb.VideoDataRecord import VideoRecord
 from pydantic_schemas.FacialDataRecord import FacialDataRecordSchema
 from pydantic_schemas.SpeechDataRecord import SpeechDataRecordSchema
 from utils import inference_yolo, inference_efficientnet, extract_mfcc_features
-from cloud.config import upload_audio_to_cloudinary, upload_video_to_cloudinary
+from cloud.config import upload_audio_to_cloudinary, upload_video_to_cloudinary, upload_image_to_cloudinary
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -179,7 +178,10 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
     # if score is greater than 0.5, then set Prediction to positive, else negative
     prediction = predicted_class_name
 
-    facial_data_record = FacialDataRecordSchema(data=file_location, date=datetime.now(), prediction=str(prediction),
+    cloudianry_url = await upload_image_to_cloudinary(contents, patient_id)
+    os.remove(file_location)
+
+    facial_data_record = FacialDataRecordSchema(data=cloudianry_url, date=datetime.now(), prediction=str(prediction),
                                                 confidence=float(combined_conf),
                                                 prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
                                                 prediction_result_in_probability_of_yolo_model=prediction_result_in_probability_of_yolo_model,
@@ -189,7 +191,7 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
                                                 prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
                                                 prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
                                                 prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
-    facial_record = FacialDataRecord(patient_id=patient_id, data=file_location, prediction=str(prediction),
+    facial_record = FacialDataRecord(patient_id=patient_id, data=cloudianry_url, prediction=str(prediction),
                                      confidence=float(combined_conf), date=datetime.now(),
                                      prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
                                      prediction_result_in_probability_of_yolo_model=prediction_result_in_probability_of_yolo_model,
@@ -208,9 +210,9 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
     if not updated_patient:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
 
-    new_patient = Patient(**patient_dict)
+    # new_patient = Patient(**patient_dict)
 
-    return {"detail": f"Image {filename} uploaded successfully.", "prediction": prediction, "patient": new_patient,
+    return {"detail": f"Image {filename} uploaded successfully.", "prediction": prediction, "record": facial_data_record.model_dump(),
             "success": True}
 
 @router.post('/speech/{patient_id}', status_code=status.HTTP_200_OK)
