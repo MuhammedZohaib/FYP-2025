@@ -179,6 +179,8 @@ const EditProfile = ({
         mother_name: formData.mother_name,
         mother_cnic: formData.mother_cnic,
         other_info: formData.other_info,
+        asd: false,
+        doctor: "" 
       };
 
       const response = await fetch(
@@ -560,6 +562,8 @@ export default function PatientInfo() {
   const [showFacialPreview, setShowFacialPreview] = useState<boolean>(false)
   const [selectedFacialRecord, setSelectedFacialRecord] = useState<FacialRecord | null>(null)
 
+  const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
+
   useEffect(() => {
     async function fetchPatient() {
       if (!patient_id) return;
@@ -707,44 +711,6 @@ export default function PatientInfo() {
       get_predictions();
     }
   }, [patient_id]);
-
-  // const handleDrag = (e: React.DragEvent) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   if (e.type === "dragenter" || e.type === "dragover") {
-  //     setDragActive(true);
-  //   } else if (e.type === "dragleave") {
-  //     setDragActive(false);
-  //   }
-  // };
-  //
-  // const handleDrop = (e: React.DragEvent) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   setDragActive(false);
-  //
-  //   const files = Array.from(e.dataTransfer.files);
-  //   if (files.length > 0) {
-  //     if (files[0].type.startsWith("audio/")) {
-  //       setUploadFile(files[0]);
-  //       toast.success("Audio file selected successfully");
-  //     } else {
-  //       toast.error("Please upload an audio file");
-  //     }
-  //   }
-  // };
-  //
-  // const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const files = e.target.files;
-  //   if (files && files[0]) {
-  //     if (files[0].type.startsWith("audio/")) {
-  //       setUploadFile(files[0]);
-  //       toast.success("Audio file selected successfully");
-  //     } else {
-  //       toast.error("Please upload an audio file");
-  //     }
-  //   }
-  // };
 
   const handleEEGUpload = async (data: EEGRecord) => {
     try {
@@ -1467,7 +1433,11 @@ export default function PatientInfo() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1 bg-white text-black hover:bg-gray-200">
+                  <Button 
+                    onClick={() => {
+                      setShowEditProfile(true)
+                    }}
+                    className="flex-1 bg-white text-black hover:bg-gray-200">
                     <Pencil size={16} className="mr-2" />
                     Edit Profile
                   </Button>
@@ -1782,6 +1752,13 @@ export default function PatientInfo() {
           </TabContent>
         </Tabs>
       </div>
+
+      {showEditProfile && (
+        <EditProfile patient={patient} onClose={() => setShowEditProfile(false)} onUpdate={(patient: Patient) => setPatient((prev) => ({
+          ...patient,
+          _id: prev?._id || ""
+        }))} />
+      )}
 
       {/* EEG Modal */}
       {showEEGModal && (

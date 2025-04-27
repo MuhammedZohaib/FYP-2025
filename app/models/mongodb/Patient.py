@@ -44,7 +44,8 @@ class Patient:
     @staticmethod
     def update(patient_id: str, update_data: dict):
         collection = db.get_collection('patients')
-        result = collection.update_one({"_id": patient_id}, {"$set": update_data})
+        update_data.pop("_id")
+        result = collection.update_one({"_id": ObjectId(patient_id)}, {"$set": update_data})
         return result
 
     @staticmethod

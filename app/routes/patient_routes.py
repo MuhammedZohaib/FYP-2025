@@ -93,12 +93,14 @@ def get_patient(patient_id: str):
 def update_patient(patient_id: str, update_data: PatientSchema):
     patient = Patient.find_by_id(patient_id)
     patient_dict = {**patient, "_id": str(patient["_id"])}
-    patient_dict.pop("patient_id")
     if patient is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
     for field, value in update_data.model_dump().items():
         patient_dict[field] = value
+
+    patient_dict['asd'] = patient.get('asd', False)
+    patient_dict['doctor'] = patient.get('doctor', "")
 
     updated = Patient.update(patient_id, patient_dict)
     if not updated:
