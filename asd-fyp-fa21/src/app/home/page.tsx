@@ -39,7 +39,7 @@ export default function Home() {
               <Link href={"/dashboard"}>
                 <Button
                   variant="outline"
-                  className="border-gray-700 text-white hover:bg-gray-800"
+                  className="border-gray-700 text-white bg-gray-700"
                 >
                   Go to the Dashboard
                 </Button>
@@ -127,54 +127,54 @@ export default function Home() {
             </div>
 
             <Card className="bg-[radial-gradient(circle,#171717_0%,#151515_100%)] border-gray-800 p-8">
-              <h3 className="text-xl font-bold mb-6">
+              <h3 className="text-xl text-white font-bold mb-6">
                 In case of any queries reach out to us by filling the form below
               </h3>
               <form className="space-y-4">
                 <div>
                   <label
                     htmlFor="name"
-                    className="block text-sm font-medium mb-2"
+                    className="block text-sm font-medium text-white mb-2"
                   >
                     Name
                   </label>
                   <input
                     id="name"
                     type="text"
-                    className="w-full px-4 py-2 bg-black-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 bg-black text-white border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your full name"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="email"
-                    className="block text-sm font-medium mb-2"
+                    className="block text-sm font-medium text-white mb-2"
                   >
                     Email
                   </label>
                   <input
                     id="email"
                     type="email"
-                    className="w-full px-4 py-2 bg-black-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 bg-black text-white border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your email address"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="description"
-                    className="block text-sm font-medium mb-2"
+                    className="block text-sm font-medium text-white mb-2"
                   >
                     Description
                   </label>
                   <textarea
                     id="description"
                     rows={5}
-                    className="w-full px-4 py-2 bg-black-800 border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 bg-black text-white border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your queries for better understanding"
                   ></textarea>
                 </div>
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  Book Consultation
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium">
+                  Book a Consultation
                 </Button>
               </form>
             </Card>

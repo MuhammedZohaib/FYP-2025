@@ -331,7 +331,7 @@ async def predict(patient_id: str, data: dict, request: Request):
     elif predicted_class == 1:
         prediction_result_in_category = "dyslexia"
     else:
-        prediction_result_in_category = "atypical"
+        prediction_result_in_category = "Typical"
 
     eeg_data = EEGDataRecord(
         **data,
