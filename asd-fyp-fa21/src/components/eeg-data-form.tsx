@@ -34,6 +34,8 @@ interface EegDataFormProps {
   patient: Patient;
   updateData: (data: any) => void;
   closeModal: () => void;
+  hide?: boolean
+  setData?: (data: any) => void
 }
 
 const EEGFieldsLeft = [
@@ -58,6 +60,8 @@ export default function EegDataForm({
   patient,
   updateData,
   closeModal,
+  hide,
+  setData
 }: EegDataFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -154,23 +158,27 @@ export default function EegDataForm({
       // In a real app, you would make an API call here
       console.log("Submitting data:", dataToSubmit);
 
-      const res = await fetch(`${endpoint}/upload/eeg/${patient._id}`, {
-        method: "POST",
-        headers: {
-          access_token: localStorage.getItem("access_token") || "",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(dataToSubmit),
-      });
+      if(hide && setData) {
+        setData(dataToSubmit)
+      }else {
+        const res = await fetch(`${endpoint}/upload/eeg/${patient._id}`, {
+          method: "POST",
+          headers: {
+            access_token: localStorage.getItem("access_token") || "",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataToSubmit),
+        });
 
-      const json = await res.json();
+        const json = await res.json();
 
-      updateData(json.patient.eeg_data_records[0]);
+        updateData(json.patient.eeg_data_records[0]);
 
-      console.log(json);
+        console.log(json);
 
-      setLoading(false);
-      closeModal();
+        setLoading(false);
+        closeModal();
+      }
     } catch (error) {
       console.error("Error submitting EEG data:", error);
       setLoading(false);
@@ -318,23 +326,31 @@ export default function EegDataForm({
         </div>
       </div>
 
-      <div className="flex gap-3 justify-start">
-        <Button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={loading}
-        >
-          {loading ? "Processing..." : "Predict & Save"}
+      {!hide && 
+        <div className="flex gap-3 justify-start">
+          <Button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={loading}
+          >
+            {loading ? "Processing..." : "Predict & Save"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={closeModal}
+            className="bg-[#121212] border-gray-700 text-white hover:bg-[#252525]"
+          >
+            Cancel
+          </Button>
+        </div>
+      }
+
+      {hide &&
+        <Button onClick={handleSubmit}>
+          Update
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={closeModal}
-          className="bg-[#121212] border-gray-700 text-white hover:bg-[#252525]"
-        >
-          Cancel
-        </Button>
-      </div>
+      }
     </form>
   );
 }

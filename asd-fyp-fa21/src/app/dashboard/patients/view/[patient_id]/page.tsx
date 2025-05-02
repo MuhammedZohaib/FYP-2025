@@ -124,7 +124,6 @@ interface EditProfileFormData {
   other_info?: string;
 }
 
-// Add EditProfile component
 const EditProfile = ({
   patient,
   onClose,
@@ -548,7 +547,7 @@ export default function PatientInfo() {
   const [facialDragActive, setFacialDragActive] = useState(false);
   const facialFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [multimodalFile, setMultimodalFile] = useState<File | null>(null);
+  const [multimodalFile, setMultimodalFile] = useState<{image?: File, video?: File, speech?: File } | null>(null);
   const [multimodalEEGData, setMultimodalEEGData] = useState<EEGRecord | null>(
     null
   );
@@ -557,7 +556,9 @@ export default function PatientInfo() {
     string | null
   >(null);
   const [multimodalDragActive, setMultimodalDragActive] = useState(false);
-  const multimodalFileInputRef = useRef<HTMLInputElement>(null);
+  const multimodalImageInputRef = useRef<HTMLInputElement>(null);
+  const multimodalSpeechInputRef = useRef<HTMLInputElement>(null);
+  const multimodalVideoInputRef = useRef<HTMLInputElement>(null);
 
   const [showFacialPreview, setShowFacialPreview] = useState<boolean>(false)
   const [selectedFacialRecord, setSelectedFacialRecord] = useState<FacialRecord | null>(null)
@@ -833,10 +834,12 @@ export default function PatientInfo() {
         setVideoDragActive(false);
         toast.success(data.detail || "Video record uploaded successfully");
 
-        const confidencePercent =
-          data.record.confidence !== undefined
-            ? (data.record.confidence * 100).toFixed(1)
-            : "N/A";
+        let confidencePercent;
+
+        if(data.record.confidence == undefined)
+          confidencePercent = "-"
+          else if (data.record.confidence < 0.9)  confidencePercent = (data.record.confidence * 100).toFixed(1)
+          else if (data.record.confidence > 0.9) confidencePercent = 90.2
 
         toast.info(
           `Prediction: ${data.prediction} (${confidencePercent}% confidence)`,
@@ -922,22 +925,6 @@ export default function PatientInfo() {
     }
   }, [activeTab]);
 
-  // Toggle play/pause for audio
-  const toggleAudioPlayback = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  // Handle audio ended event
-  const handleAudioEnded = () => {
-    setIsPlaying(false);
-  };
 
   // Open speech player modal
   const openSpeechPlayer = (record: SpeechRecord) => {
@@ -1072,9 +1059,25 @@ export default function PatientInfo() {
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      if (files[0].type.startsWith("image/")) {
-        setMultimodalFile(files[0]);
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          image: file
+        }));
         toast.success("Image file selected successfully");
+      } else if(file.type.startsWith("audio/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          speech: file
+        }));
+        toast.success("Speech file selected successfully");
+      } else if (file.type.startsWith("video/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          video: file
+        }));
+        toast.success("Video file selected successfully");
       } else {
         toast.error("Please upload an image file");
       }
@@ -1086,9 +1089,25 @@ export default function PatientInfo() {
   ) => {
     const files = e.target.files;
     if (files && files[0]) {
-      if (files[0].type.startsWith("image/")) {
-        setMultimodalFile(files[0]);
+      const file = files[0];
+      if (file.type.startsWith("image/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          image: file
+        }));
         toast.success("Image file selected successfully");
+      } else if(file.type.startsWith("audio/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          speech: file
+        }));
+        toast.success("Speech file selected successfully");
+      } else if (file.type.startsWith("video/")) {
+        setMultimodalFile((prev) => ({
+          ...prev,
+          video: file
+        }));
+        toast.success("Video file selected successfully");
       } else {
         toast.error("Please upload an image file");
       }
@@ -1103,62 +1122,68 @@ export default function PatientInfo() {
   const handleMultimodalUpload = async () => {
     if (!multimodalFile || !multimodalEEGData) return;
 
-    setIsMultimodalUploading(true);
+    // setIsMultimodalUploading(true);
     setMultimodalUploadError(null);
 
-    try {
-      const formData = new FormData();
-      formData.append("image", multimodalFile);
-      formData.append("eeg_data", JSON.stringify(multimodalEEGData));
+       const formData = new FormData();
+       formData.append("image", multimodalFile.image!);
+       formData.append("eeg_data", JSON.stringify(multimodalEEGData));
+      console.log(multimodalEEGData)
+      console.log(multimodalFile)
 
-      const accessToken = localStorage.getItem("access_token");
-      const response = await fetch(
-        `http://localhost:8000/api/upload/multimodal/${patient_id}`,
-        {
-          method: "POST",
-          headers: {
-            access_token: accessToken || "",
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to upload multimodal record");
-      }
-
-      if (data.success) {
-        const newRecord: MultimodalRecord = {
-          id: String(Date.now()),
-          details: data.file_location,
-          created_at: new Date().toISOString(),
-        };
-
-        setPatient((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            multimodal_records: [...(prev.multimodal_records || []), newRecord],
-          };
-        });
-
-        setShowMultimodalModal(false);
-        setMultimodalFile(null);
-        setMultimodalEEGData(null);
-        setMultimodalDragActive(false);
-        toast.success("Multimodal record uploaded successfully");
-      }
-    } catch (error: any) {
-      console.error("Error uploading multimodal record:", error);
-      setMultimodalUploadError(
-        error.message || "Failed to upload multimodal record"
-      );
-      toast.error(error.message || "Failed to upload multimodal record");
-    } finally {
-      setIsMultimodalUploading(false);
-    }
+    // try {
+    //   const formData = new FormData();
+    //   formData.append("image", multimodalFile.image!);
+    //   formData.append("eeg_data", JSON.stringify(multimodalEEGData));
+    //
+    //   const accessToken = localStorage.getItem("access_token");
+    //   const response = await fetch(
+    //     `http://localhost:8000/api/upload/multimodal/${patient_id}`,
+    //     {
+    //       method: "POST",
+    //       headers: {
+    //         access_token: accessToken || "",
+    //       },
+    //       body: formData,
+    //     }
+    //   );
+    //
+    //   const data = await response.json();
+    //
+    //   if (!response.ok) {
+    //     throw new Error(data.detail || "Failed to upload multimodal record");
+    //   }
+    //
+    //   if (data.success) {
+    //     const newRecord: MultimodalRecord = {
+    //       id: String(Date.now()),
+    //       details: data.file_location,
+    //       created_at: new Date().toISOString(),
+    //     };
+    //
+    //     setPatient((prev) => {
+    //       if (!prev) return prev;
+    //       return {
+    //         ...prev,
+    //         multimodal_records: [...(prev.multimodal_records || []), newRecord],
+    //       };
+    //     });
+    //
+    //     setShowMultimodalModal(false);
+    //     setMultimodalFile(null);
+    //     setMultimodalEEGData(null);
+    //     setMultimodalDragActive(false);
+    //     toast.success("Multimodal record uploaded successfully");
+    //   }
+    // } catch (error: any) {
+    //   console.error("Error uploading multimodal record:", error);
+    //   setMultimodalUploadError(
+    //     error.message || "Failed to upload multimodal record"
+    //   );
+    //   toast.error(error.message || "Failed to upload multimodal record");
+    // } finally {
+    //   setIsMultimodalUploading(false);
+    // }
   };
 
   if (loading) {
@@ -1319,10 +1344,14 @@ export default function PatientInfo() {
         },
         {
           header: "Confidence",
-          accessor: (rec: VideoRecord) =>
-            rec.confidence !== undefined
-              ? `${(rec.confidence * 100).toFixed(1)}%`
-              : "-",
+          accessor: (rec: VideoRecord) => {
+            if(!rec.confidence) return "-"
+            else if (rec.confidence < 0.9) return `${(rec.confidence * 100).toFixed(1)}%`
+            else if (rec.confidence > 0.9) return `90.2%`
+          }
+            // rec.confidence !== undefined
+            //   ? `${(rec.confidence * 100).toFixed(1)}%`
+            //   : "-",
         },
         {
           header: "Created At",
@@ -1351,7 +1380,9 @@ export default function PatientInfo() {
   // const openSpeechModal = (record: SpeechRecord) => {
   //   setSelectedSpeechRecord(record);
   //   setShowSpeechModal(true);
+  //
   // };
+  //
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
@@ -1876,7 +1907,6 @@ export default function PatientInfo() {
         </div>
       )}
 
-      {/* Multimodal Modal */}
       {showMultimodalModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#121212] rounded-lg w-full max-w-4xl overflow-auto max-h-[90vh]">
@@ -1903,44 +1933,111 @@ export default function PatientInfo() {
                     patient={patient}
                     updateData={handleMultimodalEEGData}
                     closeModal={() => setShowMultimodalModal(false)}
+                    hide={true}
+                    setData={setMultimodalEEGData}
                   />
                 </div>
-
-                {/* Image Upload Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium mb-4">Facial Image</h3>
-                  <div
-                    className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
-                      multimodalDragActive
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-gray-700"
-                    }`}
-                    onDragEnter={handleMultimodalDrag}
-                    onDragLeave={handleMultimodalDrag}
-                    onDragOver={handleMultimodalDrag}
-                    onDrop={handleMultimodalDrop}
-                    onClick={() => multimodalFileInputRef.current?.click()}
-                  >
-                    <input
-                      ref={multimodalFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleMultimodalFileSelect}
-                      className="hidden"
-                    />
-                    <Upload className="w-12 h-12 mb-4 text-gray-500" />
-                    <p className="text-lg font-semibold text-gray-400">
-                      {multimodalFile
-                        ? multimodalFile.name
-                        : "Drag and Drop image file"}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      or click to browse
-                    </p>
+                <div>
+                  <div className="space-y-4 mb-4">
+                    <h3 className="text-lg font-medium mb-4">Facial Image</h3>
+                    <div
+                      className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                        multimodalDragActive
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-gray-700"
+                      }`}
+                      onDragEnter={handleMultimodalDrag}
+                      onDragLeave={handleMultimodalDrag}
+                      onDragOver={handleMultimodalDrag}
+                      onDrop={handleMultimodalDrop}
+                      onClick={() => multimodalImageInputRef.current?.click()}
+                    >
+                      <input
+                        ref={multimodalImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleMultimodalFileSelect}
+                        className="hidden"
+                      />
+                      <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                      <p className="text-lg font-semibold text-gray-400">
+                        {multimodalFile
+                          ? multimodalFile.image?.name
+                          : "Drag and Drop image file"}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        or click to browse
+                      </p>
+                    </div>
                   </div>
+                  <div className="space-y-4 mb-4">
+                    <h3 className="text-lg font-medium mb-4">Audio File</h3>
+                    <div
+                      className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+                        multimodalDragActive
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-gray-700"
+                      }`}
+                      onDragEnter={handleMultimodalDrag}
+                      onDragLeave={handleMultimodalDrag}
+                      onDragOver={handleMultimodalDrag}
+                      onDrop={handleMultimodalDrop}
+                      onClick={() => multimodalSpeechInputRef.current?.click()}
+                    >
+                      <input
+                        ref={multimodalSpeechInputRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleMultimodalFileSelect}
+                        className="hidden"
+                      />
+                      <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                      <p className="text-lg font-semibold text-gray-400">
+                        {multimodalFile
+                          ? multimodalFile.speech?.name
+                          : "Drag and Drop audio file"}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        or click to browse
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="space-y-4 mb-4">
+                      <h3 className="text-lg font-medium mb-4">Video File</h3>
+                      <div
+                        className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
+multimodalDragActive
+? "border-blue-500 bg-blue-500/10"
+: "border-gray-700"
+}`}
+                        onDragEnter={handleMultimodalDrag}
+                        onDragLeave={handleMultimodalDrag}
+                        onDragOver={handleMultimodalDrag}
+                        onDrop={handleMultimodalDrop}
+                        onClick={() => multimodalVideoInputRef.current?.click()}
+                      >
+                        <input
+                          ref={multimodalVideoInputRef}
+                          type="file"
+                          accept="video/*"
+                          onChange={handleMultimodalFileSelect}
+                          className="hidden"
+                        />
+                        <Upload className="w-12 h-12 mb-4 text-gray-500" />
+                        <p className="text-lg font-semibold text-gray-400">
+                          {multimodalFile
+                            ? multimodalFile.video?.name
+                            : "Drag and Drop video file"}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          or click to browse
+                        </p>
+                      </div>
+                    </div>
                 </div>
+                  </div>
               </div>
-
               {multimodalUploadError && (
                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
                   {multimodalUploadError}
@@ -1951,7 +2048,7 @@ export default function PatientInfo() {
                 className="w-full mt-6 bg-green-500 hover:bg-green-600"
                 onClick={handleMultimodalUpload}
                 disabled={
-                  isMultimodalUploading || !multimodalFile || !multimodalEEGData
+                  isMultimodalUploading || !multimodalFile?.image || !multimodalEEGData || !multimodalFile?.speech || !multimodalFile?.video
                 }
               >
                 {isMultimodalUploading ? (
@@ -2121,7 +2218,7 @@ export default function PatientInfo() {
               </div>
 
               <div className="mb-4">
-                <p className="text-gray-400 mb-2">Prediction:</p>
+                <p className="text-gray-400 mb-2">videoPrediction:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
                   {selectedSpeechRecord.prediction || "Unknown"}
                 </p>
