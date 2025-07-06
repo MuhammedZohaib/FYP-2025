@@ -129,17 +129,6 @@ export function Footer() {
 
         {/* Bottom section */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="access"
-              className="h-4 w-4 rounded border-gray-700 bg-gray-900 text-blue-600 focus:ring-blue-600 focus:ring-offset-gray-900"
-            />
-            <label htmlFor="access" className="text-sm text-gray-400">
-              Access the dashboard
-            </label>
-          </div>
-
           <div className="text-sm text-gray-500">
             © {new Date().getFullYear()} ASD Platform. All rights reserved.
           </div>
