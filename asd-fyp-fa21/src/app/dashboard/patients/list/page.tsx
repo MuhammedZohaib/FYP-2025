@@ -135,9 +135,6 @@ export default function PatientsList() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" className="border-gray-700 text-white">
-              View
-            </Button>
             <Button className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
               <Plus size={16} />
               <Link href={"/dashboard/patients/add"}>Add Patient</Link>

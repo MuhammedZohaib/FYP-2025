@@ -14,7 +14,13 @@ import AuthButton from "./auth-button";
 import { z, ZodType } from "zod";
 import { Field } from "@/types/field";
 import { DatePicker } from "./date-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
 import { Textarea } from "./textarea";
 
 export default function DynamicForm<T extends Record<string, string | number>>({
@@ -46,7 +52,15 @@ export default function DynamicForm<T extends Record<string, string | number>>({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-bold">{label}</FormLabel>
-                  {renderControl(type, field)}
+                  {renderControl(
+                    type as
+                      | string
+                      | {
+                          type: string;
+                          options: { value: string; label: string }[];
+                        },
+                    field
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -67,7 +81,7 @@ export default function DynamicForm<T extends Record<string, string | number>>({
 
 function renderControl(
   type: string | { type: string; options: { value: string; label: string }[] },
-  field: any,
+  field: any
 ) {
   if (typeof type !== "string" && type) {
     return (
@@ -78,9 +92,11 @@ function renderControl(
           </SelectTrigger>
         </FormControl>
         <SelectContent>
-            {type.options.map(({ value, label }) => (
-              <SelectItem key={value.toString()} value={value.toString()}>{label}</SelectItem>
-            ))}
+          {type.options.map(({ value, label }) => (
+            <SelectItem key={value.toString()} value={value.toString()}>
+              {label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     );
@@ -93,7 +109,7 @@ function renderControl(
       return <Input type={type} {...field} className="py-4" />;
     case "date":
       return <DatePicker field={field} />;
-      case "textarea": 
-      return <Textarea {...field} />
+    case "textarea":
+      return <Textarea {...field} />;
   }
 }

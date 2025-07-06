@@ -58,9 +58,11 @@ export function Navbar() {
           <Link href={"/auth/login"} className="text-white hover:text-blue-400">
             Login
           </Link>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            Book Consultation
-          </Button>
+          <Link href={"/auth/signup"} className="w-full sm:w-auto">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              Create an Account
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile Menu Button */}

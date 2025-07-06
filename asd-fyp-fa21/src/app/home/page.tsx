@@ -19,9 +19,10 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative mt-10 md:mt-20 py-12 md:py-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-black/80 z-0"></div>
-        <div className="absolute inset-0 bg-cover bg-center opacity-20 z-[-1]"></div>
+      <section className="relative mt-10 md:mt-20 py-12 md:py-20 min-h-[80vh] overflow-hidden">
+        <div className="absolute inset-0 w-full h-full">
+          <BackgroundBeams />
+        </div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="max-w-3xl mx-auto mb-8 md:mb-12">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
@@ -31,20 +32,6 @@ export default function Home() {
               With our state of the art scanning page, we are to back know
               testing services, you can check your website in seconds.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12 md:mb-20 px-4">
-              <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700">
-                Book Consultation
-              </Button>
-
-              <Link href={"/dashboard"} className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full border-gray-700 text-white bg-gray-700 hover:bg-gray-600"
-                >
-                  Go to the Dashboard
-                </Button>
-              </Link>
-            </div>
           </div>
 
           <div className="relative mx-auto max-w-5xl px-4">
@@ -58,7 +45,6 @@ export default function Home() {
             />
           </div>
         </div>
-        <BackgroundBeams />
       </section>
 
       {/* Features Section */}
