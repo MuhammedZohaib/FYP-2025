@@ -29,16 +29,18 @@ export function ChartContainer({
   }, {} as Record<string, string>);
 
   return (
-    <div className={cn("w-full", className)} style={style} {...props}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className={cn("w-full h-full", className)} style={style} {...props}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={200}>
         {children}
       </ResponsiveContainer>
     </div>
   );
 }
 
+type ContentType = TooltipProps<any, any>["content"];
+
 interface ChartTooltipProps extends Omit<TooltipProps<any, any>, "content"> {
-  content?: Exclude<React.ReactNode, undefined>;
+  content?: ContentType;
   indicator?: "line" | "circle";
   hideLabel?: boolean;
 }

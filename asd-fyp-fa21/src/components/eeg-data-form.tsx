@@ -34,8 +34,8 @@ interface EegDataFormProps {
   patient: Patient;
   updateData: (data: any) => void;
   closeModal: () => void;
-  hide?: boolean
-  setData?: (data: any) => void
+  hide?: boolean;
+  setData?: (data: any) => void;
 }
 
 const EEGFieldsLeft = [
@@ -61,7 +61,7 @@ export default function EegDataForm({
   updateData,
   closeModal,
   hide,
-  setData
+  setData,
 }: EegDataFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -158,9 +158,9 @@ export default function EegDataForm({
       // In a real app, you would make an API call here
       console.log("Submitting data:", dataToSubmit);
 
-      if(hide && setData) {
-        setData(dataToSubmit)
-      }else {
+      if (hide && setData) {
+        setData(dataToSubmit);
+      } else {
         const res = await fetch(`${endpoint}/upload/eeg/${patient._id}`, {
           method: "POST",
           headers: {
@@ -326,7 +326,7 @@ export default function EegDataForm({
         </div>
       </div>
 
-      {!hide && 
+      {!hide && (
         <div className="flex gap-3 justify-start">
           <Button
             type="submit"
@@ -344,13 +344,9 @@ export default function EegDataForm({
             Cancel
           </Button>
         </div>
-      }
+      )}
 
-      {hide &&
-        <Button onClick={handleSubmit}>
-          Update
-        </Button>
-      }
+      {hide && <Button onClick={handleSubmit}>Update</Button>}
     </form>
   );
 }

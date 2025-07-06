@@ -14,7 +14,7 @@ export default function ClinicalGuidelinesPage() {
     <div className="min-h-screen bg-background text-white p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h1 className="text-xl text-rose-400 font-medium">
               Clinical Guidelines
@@ -28,7 +28,7 @@ export default function ClinicalGuidelinesPage() {
           </div>
           <Link
             href="/dashboard"
-            className="px-4 py-1.5 rounded border border-gray-700 text-sm hover:bg-gray-800 transition-colors flex items-center gap-1"
+            className="w-full sm:w-auto px-4 py-1.5 rounded border border-gray-700 text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-1"
           >
             <span>Back to Dashboard</span>
           </Link>

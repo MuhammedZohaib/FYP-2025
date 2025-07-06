@@ -17,15 +17,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`min-h-screen bg-background ${inter.className}`}>
+      <body
+        className={`min-h-screen bg-background ${inter.className} overflow-x-hidden`}
+      >
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
             <div className="flex h-[5.3rem] items-center border-b px-4">
-              <SidebarTrigger className="mr-4 " />
+              <SidebarTrigger className="mr-4" />
               <h1 className="text-lg font-semibold">Dashboard</h1>
             </div>
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 overflow-x-hidden">{children}</main>
           </SidebarInset>
         </SidebarProvider>
         <Toaster />

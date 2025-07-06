@@ -179,7 +179,7 @@ const EditProfile = ({
         mother_cnic: formData.mother_cnic,
         other_info: formData.other_info,
         asd: false,
-        doctor: "" 
+        doctor: "",
       };
 
       const response = await fetch(
@@ -547,7 +547,11 @@ export default function PatientInfo() {
   const [facialDragActive, setFacialDragActive] = useState(false);
   const facialFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [multimodalFile, setMultimodalFile] = useState<{image?: File, video?: File, speech?: File } | null>(null);
+  const [multimodalFile, setMultimodalFile] = useState<{
+    image?: File;
+    video?: File;
+    speech?: File;
+  } | null>(null);
   const [multimodalEEGData, setMultimodalEEGData] = useState<EEGRecord | null>(
     null
   );
@@ -560,8 +564,9 @@ export default function PatientInfo() {
   const multimodalSpeechInputRef = useRef<HTMLInputElement>(null);
   const multimodalVideoInputRef = useRef<HTMLInputElement>(null);
 
-  const [showFacialPreview, setShowFacialPreview] = useState<boolean>(false)
-  const [selectedFacialRecord, setSelectedFacialRecord] = useState<FacialRecord | null>(null)
+  const [showFacialPreview, setShowFacialPreview] = useState<boolean>(false);
+  const [selectedFacialRecord, setSelectedFacialRecord] =
+    useState<FacialRecord | null>(null);
 
   const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
 
@@ -692,7 +697,7 @@ export default function PatientInfo() {
             id: record.id || String(Date.now()),
             data: record.data || "",
             prediction: record.prediction || "unknown",
-            created_at: record.created_at || "-", 
+            created_at: record.created_at || "-",
             confidence: record.confidence || 0,
           })),
         });
@@ -836,10 +841,10 @@ export default function PatientInfo() {
 
         let confidencePercent;
 
-        if(data.record.confidence == undefined)
-          confidencePercent = "-"
-          else if (data.record.confidence < 0.9)  confidencePercent = (data.record.confidence * 100).toFixed(1)
-          else if (data.record.confidence > 0.9) confidencePercent = 90.2
+        if (data.record.confidence == undefined) confidencePercent = "-";
+        else if (data.record.confidence < 0.9)
+          confidencePercent = (data.record.confidence * 100).toFixed(1);
+        else if (data.record.confidence > 0.9) confidencePercent = 90.2;
 
         toast.info(
           `Prediction: ${data.prediction} (${confidencePercent}% confidence)`,
@@ -925,7 +930,6 @@ export default function PatientInfo() {
     }
   }, [activeTab]);
 
-
   // Open speech player modal
   const openSpeechPlayer = (record: SpeechRecord) => {
     setSelectedSpeechRecord(record);
@@ -935,9 +939,9 @@ export default function PatientInfo() {
   };
 
   const openFacialPreview = (record: FacialRecord) => {
-    setSelectedFacialRecord(record)
-    setShowFacialPreview(true)
-  }
+    setSelectedFacialRecord(record);
+    setShowFacialPreview(true);
+  };
 
   // Open video player modal
   const openVideoPlayer = (record: VideoRecord) => {
@@ -1015,18 +1019,21 @@ export default function PatientInfo() {
       if (data.success) {
         setPredictions((prev) => ({
           ...prev,
-          facial_data_records: [...prev.facial_data_records, {
-          id: data.record.id || String(Date.now()),
-          data: data.record.data || "",
-          prediction: data.record.prediction || "unknown",
-          created_at: data.record.date || new Date().toISOString(),
-          confidence: data.record.confidence || 0,
-          }]
-        }))
+          facial_data_records: [
+            ...prev.facial_data_records,
+            {
+              id: data.record.id || String(Date.now()),
+              data: data.record.data || "",
+              prediction: data.record.prediction || "unknown",
+              created_at: data.record.date || new Date().toISOString(),
+              confidence: data.record.confidence || 0,
+            },
+          ],
+        }));
 
         toast.success("Facial Prediction Successful", {
-          duration: 5000
-        })
+          duration: 5000,
+        });
 
         setShowFacialModal(false);
         setFacialFile(null);
@@ -1063,19 +1070,19 @@ export default function PatientInfo() {
       if (file.type.startsWith("image/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          image: file
+          image: file,
         }));
         toast.success("Image file selected successfully");
-      } else if(file.type.startsWith("audio/")) {
+      } else if (file.type.startsWith("audio/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          speech: file
+          speech: file,
         }));
         toast.success("Speech file selected successfully");
       } else if (file.type.startsWith("video/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          video: file
+          video: file,
         }));
         toast.success("Video file selected successfully");
       } else {
@@ -1093,19 +1100,19 @@ export default function PatientInfo() {
       if (file.type.startsWith("image/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          image: file
+          image: file,
         }));
         toast.success("Image file selected successfully");
-      } else if(file.type.startsWith("audio/")) {
+      } else if (file.type.startsWith("audio/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          speech: file
+          speech: file,
         }));
         toast.success("Speech file selected successfully");
       } else if (file.type.startsWith("video/")) {
         setMultimodalFile((prev) => ({
           ...prev,
-          video: file
+          video: file,
         }));
         toast.success("Video file selected successfully");
       } else {
@@ -1125,11 +1132,11 @@ export default function PatientInfo() {
     // setIsMultimodalUploading(true);
     setMultimodalUploadError(null);
 
-       const formData = new FormData();
-       formData.append("image", multimodalFile.image!);
-       formData.append("eeg_data", JSON.stringify(multimodalEEGData));
-      console.log(multimodalEEGData)
-      console.log(multimodalFile)
+    const formData = new FormData();
+    formData.append("image", multimodalFile.image!);
+    formData.append("eeg_data", JSON.stringify(multimodalEEGData));
+    console.log(multimodalEEGData);
+    console.log(multimodalFile);
 
     // try {
     //   const formData = new FormData();
@@ -1290,7 +1297,7 @@ export default function PatientInfo() {
         header: "File Name",
         accessor: (rec: SpeechRecord) => {
           if (!rec.data) return "-";
-          return rec.data.split('/').pop()
+          return rec.data.split("/").pop();
         },
       },
       {
@@ -1345,13 +1352,14 @@ export default function PatientInfo() {
         {
           header: "Confidence",
           accessor: (rec: VideoRecord) => {
-            if(!rec.confidence) return "-"
-            else if (rec.confidence < 0.9) return `${(rec.confidence * 100).toFixed(1)}%`
-            else if (rec.confidence > 0.9) return `90.2%`
-          }
-            // rec.confidence !== undefined
-            //   ? `${(rec.confidence * 100).toFixed(1)}%`
-            //   : "-",
+            if (!rec.confidence) return "-";
+            else if (rec.confidence < 0.9)
+              return `${(rec.confidence * 100).toFixed(1)}%`;
+            else if (rec.confidence > 0.9) return `90.2%`;
+          },
+          // rec.confidence !== undefined
+          //   ? `${(rec.confidence * 100).toFixed(1)}%`
+          //   : "-",
         },
         {
           header: "Created At",
@@ -1464,11 +1472,12 @@ export default function PatientInfo() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={() => {
-                      setShowEditProfile(true)
+                      setShowEditProfile(true);
                     }}
-                    className="flex-1 bg-white text-black hover:bg-gray-200">
+                    className="flex-1 bg-white text-black hover:bg-gray-200"
+                  >
                     <Pencil size={16} className="mr-2" />
                     Edit Profile
                   </Button>
@@ -1614,7 +1623,8 @@ export default function PatientInfo() {
                   },
                   {
                     header: "File Location",
-                    accessor: (rec: FacialRecord) => rec.data?.split('/').pop() || "-",
+                    accessor: (rec: FacialRecord) =>
+                      rec.data?.split("/").pop() || "-",
                   },
                   {
                     header: "Prediction",
@@ -1646,8 +1656,8 @@ export default function PatientInfo() {
                           <Eye size={18} />
                         </Button>
                       );
-                    }
-                  }
+                    },
+                  },
                 ] as TableColumn<FacialRecord>[]
               )}
             </div>
@@ -1785,10 +1795,16 @@ export default function PatientInfo() {
       </div>
 
       {showEditProfile && (
-        <EditProfile patient={patient} onClose={() => setShowEditProfile(false)} onUpdate={(patient: Patient) => setPatient((prev) => ({
-          ...patient,
-          _id: prev?._id || ""
-        }))} />
+        <EditProfile
+          patient={patient}
+          onClose={() => setShowEditProfile(false)}
+          onUpdate={(patient: Patient) =>
+            setPatient((prev) => ({
+              ...patient,
+              _id: prev?._id || "",
+            }))
+          }
+        />
       )}
 
       {/* EEG Modal */}
@@ -2007,10 +2023,10 @@ export default function PatientInfo() {
                       <h3 className="text-lg font-medium mb-4">Video File</h3>
                       <div
                         className={`flex flex-col items-center justify-center h-[200px] border-2 border-dashed rounded-lg transition-colors ${
-multimodalDragActive
-? "border-blue-500 bg-blue-500/10"
-: "border-gray-700"
-}`}
+                          multimodalDragActive
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-gray-700"
+                        }`}
                         onDragEnter={handleMultimodalDrag}
                         onDragLeave={handleMultimodalDrag}
                         onDragOver={handleMultimodalDrag}
@@ -2035,8 +2051,8 @@ multimodalDragActive
                         </p>
                       </div>
                     </div>
-                </div>
                   </div>
+                </div>
               </div>
               {multimodalUploadError && (
                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500 rounded text-red-500">
@@ -2048,7 +2064,11 @@ multimodalDragActive
                 className="w-full mt-6 bg-green-500 hover:bg-green-600"
                 onClick={handleMultimodalUpload}
                 disabled={
-                  isMultimodalUploading || !multimodalFile?.image || !multimodalEEGData || !multimodalFile?.speech || !multimodalFile?.video
+                  isMultimodalUploading ||
+                  !multimodalFile?.image ||
+                  !multimodalEEGData ||
+                  !multimodalFile?.speech ||
+                  !multimodalFile?.video
                 }
               >
                 {isMultimodalUploading ? (
@@ -2145,8 +2165,7 @@ multimodalDragActive
         </div>
       )}
 
-
-      {showFacialPreview && selectedFacialRecord &&(
+      {showFacialPreview && selectedFacialRecord && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#121212] rounded-lg w-full max-w-lg">
             <div className="p-6">
@@ -2155,8 +2174,7 @@ multimodalDragActive
                 <button
                   onClick={() => {
                     setShowFacialPreview(false);
-                    }
-                  }
+                  }}
                   className="text-gray-400 hover:text-white"
                 >
                   <X size={20} />

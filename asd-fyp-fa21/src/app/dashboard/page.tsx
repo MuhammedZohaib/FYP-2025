@@ -31,9 +31,10 @@ export default async function DashboardPage() {
   const totalPredictions = data.eeg_records + data.facial_records;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+    <div className="flex flex-col gap-4 p-2 sm:p-4 md:p-6 w-full overflow-hidden">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 w-full">
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Total Predictions
@@ -44,7 +45,7 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted-foreground">Total Predictions</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               EEG Predictions
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted-foreground">Total Predictions</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Facial Predictions
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted-foreground">Total Predictions</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">ASD Patients</CardTitle>
           </CardHeader>
@@ -79,31 +80,39 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Stats and Trends</CardTitle>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-base">Stats and Trends</CardTitle>
           </CardHeader>
-          <CardContent>
-            <StatsChart data={data} />
+          <CardContent className="p-0 h-[300px] overflow-hidden">
+            <div className="w-full h-full px-2">
+              <StatsChart data={data} />
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>ASD Diagnosis - Week</CardTitle>
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-base">ASD Diagnosis - Week</CardTitle>
           </CardHeader>
-          <CardContent>
-            <WeeklyChart data={data} />
+          <CardContent className="p-0 h-[300px] overflow-hidden">
+            <div className="w-full h-full px-2">
+              <WeeklyChart data={data} />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Patients List</CardTitle>
+      {/* Patients Table */}
+      <Card className="w-full">
+        <CardHeader className="p-4">
+          <CardTitle className="text-base">Patients List</CardTitle>
         </CardHeader>
-        <CardContent>
-          <PatientsTable />
+        <CardContent className="p-0 overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <PatientsTable />
+          </div>
         </CardContent>
       </Card>
     </div>

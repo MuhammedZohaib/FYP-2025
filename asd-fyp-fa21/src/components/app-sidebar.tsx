@@ -92,7 +92,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="grid items-center h-[5.3rem] border-b border-spacegray-400">
+      <SidebarHeader className="grid items-center h-[5.3rem] border-b border-spacegray-400 bg-black">
         <div className="p-1 mt-1">
           <div className="hidden group-data-[collapsible=icon]:block">
             <User className="h-6 w-6" />
@@ -104,7 +104,7 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="bg-black">
         <SidebarGroup>
           <SidebarGroupContent className="mt-5">
             <SidebarMenu>
@@ -182,7 +182,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="bg-black">
         <div className="flex items-center justify-between px-2 py-2">
           <div className="flex items-center gap-3">
             <Avatar>
@@ -231,7 +231,7 @@ export function AppSidebar() {
           </DropdownMenu>
         </div>
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail className="bg-black" />
     </Sidebar>
   );
 }
