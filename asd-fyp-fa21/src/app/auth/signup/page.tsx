@@ -1,31 +1,24 @@
 import { Button } from "@/components/ui/button";
 import SignUpForm from "../../../components/signup-form";
-import { FaGoogle } from "react-icons/fa";
-import Divider from "@/components/ui/divider";
 import Link from "next/link";
 
 export default function SignUp() {
   return (
-    <>
-      <div className="mb-3">
-        <h1 className="mb-3 text-xl font-bold">
-          Welcom to EEG Prediction Dashboard
+    <div className="flex flex-col justify-center space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">
+          Welcome to EEG Prediction Dashboard
         </h1>
-        <p>Signup to EEG Prediction Dashboard</p>
+        <p className="text-gray-400">Create your account to get started</p>
       </div>
-      <div className="flex relative mb-3">
-        <Button className="w-full mt-3 bg-[#D9D9D9] text-black hover:color-white hover:bg-[#D9D9D9]/90">
-          <FaGoogle />
-          Google
-        </Button>
-      </div>
-      <Divider />
+
       <SignUpForm />
-      <Link href="login" className="block w-full py-4">
+
+      <Link href="/auth/login" className="block w-full">
         <Button type="button" className="py-6 w-full">
-          Login to Dashboard
+          Already have an account? Login
         </Button>
       </Link>
-    </>
+    </div>
   );
 }
