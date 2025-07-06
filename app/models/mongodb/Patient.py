@@ -9,13 +9,15 @@ class Patient:
     def __init__(self, name: str, email: str, phone: str, address: str, mother_name: str, mother_cnic: str,
                  father_name: str, father_cnic: str, dob: str, gender: str, born_country: str, born_city: str,
                  other_info: str, asd: bool, doctor: str, facial_data_records=None,
-                 eeg_data_records=None, speech_data_records=None):
+                 eeg_data_records=None, speech_data_records=None, video_records=None):
         if speech_data_records is None:
             speech_data_records = []
         if facial_data_records is None:
             facial_data_records = []
         if eeg_data_records is None:
             eeg_data_records = []
+        if video_records is None:
+            video_records = []
         self.name = name
         self.email = email
         self.phone = phone
@@ -34,6 +36,7 @@ class Patient:
         self.doctor = doctor
         self.eeg_data_records = eeg_data_records
         self.speech_data_records = speech_data_records
+        self.video_records = video_records
 
     def save(self):
         collection = db.get_collection('patients')

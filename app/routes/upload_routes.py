@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 import joblib
 import numpy as np
@@ -21,10 +21,12 @@ from models.mongodb.FacialDataRecord import FacialDataRecord
 from models.mongodb.Patient import Patient
 from models.mongodb.SpeechDataRecord import SpeechRecord
 from models.mongodb.VideoDataRecord import VideoRecord
+from models.mongodb.MultimodalDataRecord import MultimodalDataRecord
 from pydantic_schemas.FacialDataRecord import FacialDataRecordSchema
 from pydantic_schemas.SpeechDataRecord import SpeechDataRecordSchema
 from utils import inference_yolo, inference_efficientnet, extract_mfcc_features
 from cloud.config import upload_audio_to_cloudinary, upload_video_to_cloudinary, upload_image_to_cloudinary
+from pydantic_schemas.MultimodalDataRecord import MultimodalDataRecordSchema
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -311,7 +313,11 @@ async def predict(patient_id: str, data: dict, request: Request):
     if not patient_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
-    patient_data.pop("_id")
+    # Create a copy of patient_data and remove _id
+    patient_dict = patient_data.copy()
+    patient_dict.pop("_id")
+
+    # Remove fields that aren't part of the Patient model
     data.pop("name")
     data.pop("patient_id")
 
@@ -345,9 +351,37 @@ async def predict(patient_id: str, data: dict, request: Request):
         prediction_result_in_category=prediction_result_in_category
     )
     eeg_data.save()
-    patient_data["eeg_data_records"].append(eeg_data.__dict__)
-    updated_patient = Patient.update(patient_id, patient_data)
-    new_patient = Patient(**patient_data)
+    
+    # Initialize video_records if it doesn't exist
+    if "video_records" not in patient_dict:
+        patient_dict["video_records"] = []
+        
+    patient_dict["eeg_data_records"].append(eeg_data.__dict__)
+    updated_patient = Patient.update(patient_id, patient_dict)
+    
+    # Create new patient object with the updated data
+    new_patient = Patient(
+        name=patient_dict["name"],
+        email=patient_dict["email"],
+        phone=patient_dict["phone"],
+        address=patient_dict["address"],
+        mother_name=patient_dict["mother_name"],
+        mother_cnic=patient_dict["mother_cnic"],
+        father_name=patient_dict["father_name"],
+        father_cnic=patient_dict["father_cnic"],
+        dob=patient_dict["dob"],
+        gender=patient_dict["gender"],
+        born_country=patient_dict["born_country"],
+        born_city=patient_dict["born_city"],
+        other_info=patient_dict.get("other_info", ""),
+        asd=patient_dict["asd"],
+        doctor=patient_dict["doctor"],
+        facial_data_records=patient_dict.get("facial_data_records", []),
+        eeg_data_records=patient_dict.get("eeg_data_records", []),
+        speech_data_records=patient_dict.get("speech_data_records", []),
+        video_records=patient_dict.get("video_records", [])
+    )
+    
     if not updated_patient:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
 
@@ -518,3 +552,154 @@ async def get_video_model_status(request: Request):
     if not model_status["is_ready"] and not model_status["is_loading"]:
         await load_video_model()
     return model_status
+
+class MultimodalInferenceRequest(BaseModel):
+    eeg_record_id: Optional[str] = None
+    facial_record_id: Optional[str] = None
+    speech_record_id: Optional[str] = None
+    video_record_id: Optional[str] = None
+    modality_weights: Optional[Dict[str, float]] = None
+
+@router.post('/multimodal/{patient_id}', response_model=MultimodalDataRecordSchema)
+async def get_multimodal_inference(
+    patient_id: str,
+    request_data: MultimodalInferenceRequest,
+    request: Request
+):
+    # Verify token
+    token = request.headers.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token not found"
+        )
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+    # Verify patient exists
+    patient = Patient.find_by_id(patient_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+
+    # Initialize weights
+    weights = request_data.modality_weights or {
+        "eeg": 0.35,
+        "facial": 0.25,
+        "speech": 0.20,
+        "video": 0.20
+    }
+
+    # Initialize variables for weighted average
+    weighted_sum = 0
+    total_weight = 0
+    confidences = {}
+    record_ids = {}
+
+    # Process EEG data if available
+    if request_data.eeg_record_id:
+        eeg_record = EEGDataRecord.find_by_id(request_data.eeg_record_id)
+        if eeg_record:
+            eeg_conf = float(eeg_record["confidence"])
+            if eeg_record["prediction"] == "Typical":
+                eeg_conf = 1 - eeg_conf
+            weighted_sum += weights["eeg"] * eeg_conf
+            total_weight += weights["eeg"]
+            confidences["eeg"] = eeg_conf
+            record_ids["eeg"] = request_data.eeg_record_id
+
+    # Process Facial data if available
+    if request_data.facial_record_id:
+        facial_record = FacialDataRecord.find_by_id(request_data.facial_record_id)
+        if facial_record:
+            facial_conf = float(facial_record["confidence"])
+            if facial_record["prediction"] == "Typical":
+                facial_conf = 1 - facial_conf
+            weighted_sum += weights["facial"] * facial_conf
+            total_weight += weights["facial"]
+            confidences["facial"] = facial_conf
+            record_ids["facial"] = request_data.facial_record_id
+
+    # Process Speech data if available
+    if request_data.speech_record_id:
+        speech_record = SpeechRecord.find_by_id(request_data.speech_record_id)
+        if speech_record:
+            speech_conf = float(speech_record["confidence"])
+            if speech_record["prediction"] == "Typical":
+                speech_conf = 1 - speech_conf
+            weighted_sum += weights["speech"] * speech_conf
+            total_weight += weights["speech"]
+            confidences["speech"] = speech_conf
+            record_ids["speech"] = request_data.speech_record_id
+
+    # Process Video data if available
+    if request_data.video_record_id:
+        video_record = VideoRecord.find_by_id(request_data.video_record_id)
+        if video_record:
+            video_conf = float(video_record["confidence"])
+            if video_record["prediction"] == "Typical":
+                video_conf = 1 - video_conf
+            weighted_sum += weights["video"] * video_conf
+            total_weight += weights["video"]
+            confidences["video"] = video_conf
+            record_ids["video"] = request_data.video_record_id
+
+    if total_weight == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid records provided for inference"
+        )
+
+    # Calculate final confidence and prediction
+    final_confidence = weighted_sum / total_weight
+    final_prediction = "HL-ASD" if final_confidence > 0.5 else "Typical"
+    
+    if final_prediction == "Typical":
+        final_confidence = 1 - final_confidence
+
+    # Create and save multimodal record
+    multimodal_record = MultimodalDataRecord(
+        patient_id=patient_id,
+        eeg_record_id=record_ids.get("eeg"),
+        facial_record_id=record_ids.get("facial"),
+        speech_record_id=record_ids.get("speech"),
+        video_record_id=record_ids.get("video"),
+        eeg_confidence=confidences.get("eeg", 0.0),
+        facial_confidence=confidences.get("facial", 0.0),
+        speech_confidence=confidences.get("speech", 0.0),
+        video_confidence=confidences.get("video", 0.0),
+        final_prediction=final_prediction,
+        final_confidence=final_confidence,
+        modality_weights=weights
+    )
+    
+    multimodal_record.save()
+    
+    # Update patient's ASD status based on final prediction
+    if final_confidence > 0.7:  # Only update if confidence is high enough
+        Patient.update_asd_status(
+            patient_id=patient_id,
+            asd_status=final_prediction == "HL-ASD"
+        )
+
+    return MultimodalDataRecordSchema(
+        patient_id=patient_id,
+        eeg_record_id=record_ids.get("eeg"),
+        facial_record_id=record_ids.get("facial"),
+        speech_record_id=record_ids.get("speech"),
+        video_record_id=record_ids.get("video"),
+        eeg_confidence=confidences.get("eeg", 0.0),
+        facial_confidence=confidences.get("facial", 0.0),
+        speech_confidence=confidences.get("speech", 0.0),
+        video_confidence=confidences.get("video", 0.0),
+        final_prediction=final_prediction,
+        final_confidence=final_confidence,
+        date=datetime.now(),
+        modality_weights=weights
+    )
