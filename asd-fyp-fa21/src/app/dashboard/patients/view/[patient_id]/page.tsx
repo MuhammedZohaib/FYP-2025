@@ -1357,9 +1357,6 @@ export default function PatientInfo() {
               return `${(rec.confidence * 100).toFixed(1)}%`;
             else if (rec.confidence > 0.9) return `90.2%`;
           },
-          // rec.confidence !== undefined
-          //   ? `${(rec.confidence * 100).toFixed(1)}%`
-          //   : "-",
         },
         {
           header: "Created At",
@@ -1384,13 +1381,6 @@ export default function PatientInfo() {
       ] as TableColumn<VideoRecord>[]
     );
   };
-
-  // const openSpeechModal = (record: SpeechRecord) => {
-  //   setSelectedSpeechRecord(record);
-  //   setShowSpeechModal(true);
-  //
-  // };
-  //
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
