@@ -19,10 +19,8 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative mt-10 md:mt-20 py-12 md:py-20 min-h-[80vh] overflow-hidden">
-        <div className="absolute inset-0 w-full h-full">
-          <BackgroundBeams />
-        </div>
+      <section className="relative mt-10 md:mt-20 py-12 md:py-20">
+        <BackgroundBeams className="absolute inset-0 z-0" />
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="max-w-3xl mx-auto mb-8 md:mb-12">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">

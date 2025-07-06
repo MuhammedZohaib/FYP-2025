@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { FaRobot } from "react-icons/fa";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -23,6 +24,12 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const navItems = [
+    { name: "Features", href: "#features" },
+    { name: "Testimonials", href: "#testimonials" },
+    { name: "Contact", href: "#contact" },
+  ];
 
   return (
     <header
@@ -42,15 +49,22 @@ export function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          {["Features", "Testimonials", "Contact"].map((item) => (
+          {navItems.map((item) => (
             <Link
-              key={item}
-              href={`#${item.toLowerCase()}`}
+              key={item.name}
+              href={item.href}
               className="text-sm font-medium text-zinc-300 hover:text-white transition-colors"
             >
-              {item}
+              {item.name}
             </Link>
           ))}
+          <Link
+            href="/asd-assistant"
+            className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2"
+          >
+            <FaRobot className="w-4 h-4" />
+            ASD Assistant
+          </Link>
         </nav>
 
         {/* Desktop Buttons */}
@@ -87,27 +101,39 @@ export function Navbar() {
       >
         <div className="flex flex-col p-6 space-y-6">
           <nav className="flex flex-col space-y-6">
-            {["Features", "Testimonials", "Contact"].map((item) => (
+            {navItems.map((item) => (
               <Link
-                key={item}
-                href={`#${item.toLowerCase()}`}
+                key={item.name}
+                href={item.href}
                 className="text-lg font-medium text-zinc-300 hover:text-white transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                {item}
+                {item.name}
               </Link>
             ))}
+            <Link
+              href="/asd-assistant"
+              className="text-lg font-medium text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-2"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <FaRobot className="w-4 h-4" />
+              ASD Assistant
+            </Link>
           </nav>
           <div className="flex flex-col space-y-4 pt-6 border-t border-zinc-800">
-            <Button
-              variant="ghost"
-              className="text-white hover:text-blue-400 justify-start"
-            >
-              Login
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Contact Now
-            </Button>
+            <Link href="/auth/login">
+              <Button
+                variant="ghost"
+                className="text-white hover:text-blue-400 justify-start w-full"
+              >
+                Login
+              </Button>
+            </Link>
+            <Link href="/auth/signup">
+              <Button className="bg-blue-600 hover:bg-blue-700 w-full">
+                Create an Account
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
