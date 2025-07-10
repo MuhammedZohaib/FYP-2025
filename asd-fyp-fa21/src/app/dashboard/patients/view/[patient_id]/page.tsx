@@ -1132,11 +1132,32 @@ export default function PatientInfo() {
     // setIsMultimodalUploading(true);
     setMultimodalUploadError(null);
 
-    const formData = new FormData();
+    let formData = new FormData();
     formData.append("image", multimodalFile.image!);
-    formData.append("eeg_data", JSON.stringify(multimodalEEGData));
-    console.log(multimodalEEGData);
-    console.log(multimodalFile);
+    formData.append("speech", multimodalFile.speech!)
+    formData.append("video", multimodalFile.speech!)
+    formData.append("eeg", JSON.stringify(multimodalEEGData));
+
+    try {
+      const accessToken = localStorage.getItem("access_token")
+      const response = await fetch(
+        `http://localhost:8000/api/upload/multimodal/${patient_id}`,
+        {
+          method: "POST",
+          headers: {
+            access_token: accessToken || ""
+          },
+          body: formData,
+        }
+      )
+
+      const data = await response.json()
+      console.log(data)
+
+    } catch (error) {
+      console.log(error)
+    }
+
 
     // try {
     //   const formData = new FormData();

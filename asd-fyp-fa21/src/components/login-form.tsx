@@ -33,7 +33,7 @@ export default function LoginForm() {
       child: (
         <Link
           className="w-full pt-3 block text-right text-xs underline cursor-pointer"
-          href="#"
+          href="reset"
         >
           Forgot Password?
         </Link>
