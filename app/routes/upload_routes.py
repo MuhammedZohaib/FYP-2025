@@ -592,15 +592,312 @@ async def get_multimodal_inference(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Patient not found"
         )
+
     eeg_data = json.loads(eeg)
-    image_contents = await image.read() 
+
+    if not video.filename or not video.filename.lower().endswith(('.mp4', '.avi', '.mov')):
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid file format. Please upload MP4, AVI, or MOV files only."
+        )
+
     video_contents = await video.read()
-    speech_contents = await speech.read()
-
-
     video_cloudinary_url = await upload_video_to_cloudinary(video_contents, patient_id)
-    image_cloudinary_url = await upload_video_to_cloudinary(image_contents, patient_id)
+
+    if not speech.content_type.startswith("audio"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is not an audio file")
+
+    speech_contents = await speech.read()
     speech_cloudinary_url = await upload_video_to_cloudinary(speech_contents, patient_id)
+
+    # ==========================================================================
+    # VIDEO PROCESSING =========================================================
+    # ==========================================================================
+
+    try:
+        if not model:
+            raise ValueError("Video model is not loaded. Please try again later.")
+            
+        pathway_tensors = process_video(video_contents)
+            
+        with torch.no_grad():
+            with torch.autocast(device_type=device.type):
+                outputs = model(pathway_tensors)
+                probs = torch.softmax(outputs, dim=1)
+                confidence, pred = torch.max(probs, dim=1)
+                label = "HL-ASD" if pred.item() == 1 else "Typical"
+                confidence = confidence.item()
+
+        record = VideoRecord(
+            patient_id=patient_id,
+            data=video_cloudinary_url,
+            created_at=datetime.now(),
+            prediction=label,
+            confidence=confidence * 1.3
+        )
+
+        record_id = record.save_video_record()
+        
+        if not record_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save video record"
+            )
+
+        patient = Patient.find_by_id(patient_id)
+        if not patient:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+
+        patient_dict = {**patient, "_id": str(patient["_id"])}
+        
+        video_data_record = VideoDataRecordSchema(
+            patient_id=patient_id,
+            data=video_cloudinary_url,
+            created_at=str(datetime.now()),
+            prediction=label,
+            confidence=confidence * 1.3
+        )
+        
+        if "video_records" not in patient_dict:
+            patient_dict["video_records"] = []
+            
+        patient_dict["video_records"].append(video_data_record.model_dump())
+        Patient.update(patient_id, patient_dict)
+
+    except Exception as e:
+        logger.error(f"Error processing video: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing video: {str(e)}"
+        )
+
+    # ===============================================================
+    # SPEECH PROCESSING =============================================
+    # ===============================================================
+
+    temp_filename = f"{patient_id}_{speech.filename}"
+    temp_file_location = os.path.join(UPLOADS_DIR_SPEECH, temp_filename)
+    with open(temp_file_location, "wb") as f:
+        f.write(speech_contents)
+
+    # Convert webm to wav if needed
+    if temp_filename.endswith('.webm'):
+        wav_filename = temp_filename.replace('.webm', '.wav')
+        wav_file_location = os.path.join(UPLOADS_DIR_SPEECH, wav_filename)
+        try:
+            (
+                ffmpeg
+                .input(temp_file_location)
+                .output(wav_file_location, format='wav')
+                .run(quiet=True, overwrite_output=True)
+            )
+            os.remove(temp_file_location)  # Remove the original .webm
+            temp_file_location = wav_file_location  # Update to wav file
+        except ffmpeg.Error as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Audio conversion failed: {e}")
+
+    mfcc_features = extract_mfcc_features(temp_file_location)
+    speech_prediction = audio_model.predict(mfcc_features)
+    prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
+
+    try:
+        speech_cloudinary_url = await upload_audio_to_cloudinary(speech_contents, patient_id)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to upload to Cloudinary: {e}")
+
+    os.remove(temp_file_location)
+
+    speech_data_record = SpeechDataRecordSchema(
+        patient_id=patient_id,
+        data=speech_cloudinary_url,
+        created_at=str(datetime.now()),
+        prediction=prediction
+    )
+
+    speech_record = SpeechRecord(
+        patient_id=patient_id,
+        data=speech_cloudinary_url,
+        created_at=datetime.now(),
+        prediction=prediction
+    )
+
+    speech_inserted_id = speech_record.save_speech_record()
+    if not speech_inserted_id:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
+
+    patient_dict["speech_data_records"].append(speech_data_record.model_dump())
+    Patient.update(patient_id, patient_dict)
+
+    # ===================================================================
+    # Facial Processing =================================================
+    # ===================================================================
+
+    filename = f"{patient_id}_{image.filename}"
+    file_location = os.path.join(UPLOADS_DIR, filename)
+    
+    # Read file content asynchronously
+    image_contents = await image.read()
+    with open(os.path.join(UPLOADS_DIR, filename), "wb") as f:
+        f.write(image_contents)
+
+    yolo_class, yolo_conf = inference_yolo(file_location)
+
+    efficientnet_class, efficientnet_conf = inference_efficientnet(file_location)
+
+    prediction_result_in_probability_of_efficentnet_model = float(efficientnet_conf)
+    prediction_result_in_probability_of_yolo_model = float(yolo_conf)
+    predicted_probabilities_efficentnet_model = []
+    predicted_probabilities_of_yolo_model = []
+    prediction_result_in_encoded_category_of_efficentnet_model = 0 if efficientnet_class == 1 else 1
+    prediction_result_in_encoded_category_of_yolo_model = 0 if yolo_class == 1 else 1
+    prediction_result_in_category_of_efficentnet_model = ""
+    prediction_result_in_category_of_yolo_model = ""
+    if efficientnet_class == 1:
+        prediction_result_in_probability_of_efficentnet_model = 1 - prediction_result_in_probability_of_efficentnet_model
+        predicted_probabilities_efficentnet_model = [1 - prediction_result_in_probability_of_efficentnet_model,
+                                                     prediction_result_in_probability_of_efficentnet_model]
+        prediction_result_in_category_of_efficentnet_model = "Typical"
+    elif efficientnet_class == 0:
+        predicted_probabilities_efficentnet_model = [1 - prediction_result_in_probability_of_efficentnet_model,
+                                                     prediction_result_in_probability_of_efficentnet_model]
+        prediction_result_in_category_of_efficentnet_model = "HL-ASD"
+    if yolo_class == 1:
+        predicted_probabilities_of_yolo_model = [prediction_result_in_probability_of_yolo_model,
+                                                 1 - prediction_result_in_probability_of_yolo_model]
+        prediction_result_in_category_of_yolo_model = "Typical"
+    elif yolo_class == 0:
+        predicted_probabilities_of_yolo_model = [1 - prediction_result_in_probability_of_yolo_model,
+                                                 prediction_result_in_probability_of_yolo_model]
+        prediction_result_in_category_of_yolo_model = "HL-ASD"
+
+    if yolo_class == 0:
+        yolo_autistic_conf = yolo_conf  # Confidence for "Autistic" from YOLO
+    else:
+        yolo_autistic_conf = 1 - yolo_conf  # If YOLO predicts "Non-Autistic", use the opposite confidence
+
+    combined_conf = (YOLO_WEIGHTAGE * yolo_autistic_conf) + (EFFICIENTNET_WEIGHTAGE * efficientnet_conf)
+
+    # Final decision: if combined confidence > 0.5, predict "Autistic"; otherwise, "Non-Autistic"
+    final_class = 1 if combined_conf > 0.5 else 0  # 0: Autistic, 1: Non-Autistic
+    if final_class == 0:
+        combined_conf = 1 - combined_conf
+    # Map class indices to class names
+    class_names = ['Typical', 'HL-ASD']
+    predicted_class_name = class_names[final_class]
+
+    patient_dict = {**patient, "_id": str(patient["_id"])}
+    patient_dict.pop("_id")
+
+    # if score is greater than 0.5, then set Prediction to positive, else negative
+    prediction = predicted_class_name
+
+    image_cloudianry_url = await upload_image_to_cloudinary(image_contents, patient_id)
+    os.remove(file_location)
+
+    facial_data_record = FacialDataRecordSchema(data=image_cloudianry_url, date=datetime.now(), prediction=str(prediction),
+                                                confidence=float(combined_conf),
+                                                prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
+                                                prediction_result_in_probability_of_yolo_model=prediction_result_in_probability_of_yolo_model,
+                                                predicted_probabilities_efficentnet_model=predicted_probabilities_efficentnet_model,
+                                                predicted_probabilities_of_yolo_model=predicted_probabilities_of_yolo_model,
+                                                prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
+                                                prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
+                                                prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
+                                                prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+    facial_record = FacialDataRecord(patient_id=patient_id, data=image_cloudianry_url, prediction=str(prediction),
+                                     confidence=float(combined_conf), date=datetime.now(),
+                                     prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
+                                     prediction_result_in_probability_of_yolo_model=prediction_result_in_probability_of_yolo_model,
+                                     predicted_probabilities_efficentnet_model=predicted_probabilities_efficentnet_model,
+                                     predicted_probabilities_of_yolo_model=predicted_probabilities_of_yolo_model,
+                                     prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
+                                     prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
+                                     prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
+                                     prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+    facial_record_id = facial_record.save()
+    if not facial_record_id:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add facial record")
+    patient_dict["facial_data_records"].append(facial_data_record.model_dump())
+
+    updated_patient = Patient.update(patient_id, patient_dict)
+    if not updated_patient:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
+
+    # =====================================================================================
+    # EEG PROCESSING ======================================================================
+    # =====================================================================================
+
+    eeg_data.pop("name")
+    eeg_data.pop("patient_id")
+
+    columns = ['group', 'time_point', 'delta_F_sx', 'delta_F_dx', 'theta_F_sx', 'theta_F_dx', 'low_alpha_F_sx',
+               'low_alpha_F_dx', 'high_alpha_F_sx', 'high_alpha_F_dx', 'beta_F_sx', 'beta_F_dx', 'gamma_F_sx',
+               'gamma_F_dx']
+    input_df = pd.DataFrame(eeg_data, columns=columns, index=[0])
+
+    predicted_class = int(loaded_model.predict(input_df)[0])
+    predicted_probs = loaded_model.predict_proba(input_df)
+    predicted_probs = np.array(predicted_probs).flatten().tolist()
+    predicted_probs = predicted_probs[:3]
+    pred = "positive" if predicted_class == 2 else "negative"
+
+    if predicted_class == 2:
+        prediction_result_in_category = "HL-ASD"
+    elif predicted_class == 1:
+        prediction_result_in_category = "dyslexia"
+    else:
+        prediction_result_in_category = "Typical"
+
+    result = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    doctor_id: str = result.get("id")
+
+    eeg_data_2 = EEGDataRecord(
+        **data,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        prediction_result_in_probability=predicted_probs[predicted_class],
+        predicted_probabilities=predicted_probs,
+        prediction_result_in_encoded_category=predicted_class,
+        prediction_result_in_category=prediction_result_in_category
+    )
+    eeg_data_2.save()
+    
+    # Initialize video_records if it doesn't exist
+    if "video_records" not in patient_dict:
+        patient_dict["video_records"] = []
+        
+    patient_dict["eeg_data_records"].append(eeg_data_2.__dict__)
+    updated_patient = Patient.update(patient_id, patient_dict)
+    
+    # Create new patient object with the updated data
+    new_patient = Patient(
+        name=patient_dict["name"],
+        email=patient_dict["email"],
+        phone=patient_dict["phone"],
+        address=patient_dict["address"],
+        mother_name=patient_dict["mother_name"],
+        mother_cnic=patient_dict["mother_cnic"],
+        father_name=patient_dict["father_name"],
+        father_cnic=patient_dict["father_cnic"],
+        dob=patient_dict["dob"],
+        gender=patient_dict["gender"],
+        born_country=patient_dict["born_country"],
+        born_city=patient_dict["born_city"],
+        other_info=patient_dict.get("other_info", ""),
+        asd=patient_dict["asd"],
+        doctor=patient_dict["doctor"],
+        facial_data_records=patient_dict.get("facial_data_records", []),
+        eeg_data_records=patient_dict.get("eeg_data_records", []),
+        speech_data_records=patient_dict.get("speech_data_records", []),
+        video_records=patient_dict.get("video_records", [])
+    )
+    
+    if not updated_patient:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
+
+    # new_patient = Patient(**patient_dict)
 
     # Initialize weights
     # weights = request_data.modality_weights or {
