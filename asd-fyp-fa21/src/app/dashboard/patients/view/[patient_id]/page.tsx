@@ -29,7 +29,6 @@ import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
 import React from "react";
 import AudioUploader from "@/components/AudioUploader";
-import { EEGAnalysisCharts } from "@/components/eeg-analysis-charts";
 
 interface Patient {
   _id: string;
@@ -570,10 +569,6 @@ export default function PatientInfo() {
     useState<FacialRecord | null>(null);
 
   const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
-  const [showEEGAnalysis, setShowEEGAnalysis] = useState(false);
-  const [selectedEEGRecord, setSelectedEEGRecord] = useState<EEGRecord | null>(
-    null
-  );
 
   useEffect(() => {
     async function fetchPatient() {
@@ -1139,28 +1134,30 @@ export default function PatientInfo() {
 
     let formData = new FormData();
     formData.append("image", multimodalFile.image!);
-    formData.append("speech", multimodalFile.speech!);
-    formData.append("video", multimodalFile.speech!);
+    formData.append("speech", multimodalFile.speech!)
+    formData.append("video", multimodalFile.speech!)
     formData.append("eeg", JSON.stringify(multimodalEEGData));
 
     try {
-      const accessToken = localStorage.getItem("access_token");
+      const accessToken = localStorage.getItem("access_token")
       const response = await fetch(
         `http://localhost:8000/api/upload/multimodal/${patient_id}`,
         {
           method: "POST",
           headers: {
-            access_token: accessToken || "",
+            access_token: accessToken || ""
           },
           body: formData,
         }
-      );
+      )
 
-      const data = await response.json();
-      console.log(data);
+      const data = await response.json()
+      console.log(data)
+
     } catch (error) {
-      console.log(error);
+      console.log(error)
     }
+
 
     // try {
     //   const formData = new FormData();
@@ -1215,11 +1212,6 @@ export default function PatientInfo() {
     // } finally {
     //   setIsMultimodalUploading(false);
     // }
-  };
-
-  const openEEGAnalysis = (record: EEGRecord) => {
-    setSelectedEEGRecord(record);
-    setShowEEGAnalysis(true);
   };
 
   if (loading) {
@@ -1614,21 +1606,6 @@ export default function PatientInfo() {
                     rec.updated_at
                       ? new Date(rec.updated_at).toDateString()
                       : "-",
-                },
-                {
-                  header: "Actions",
-                  accessor: (rec: EEGRecord) => {
-                    return (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
-                        onClick={() => openEEGAnalysis(rec)}
-                      >
-                        <Eye size={18} />
-                      </Button>
-                    );
-                  },
                 },
               ] as TableColumn<EEGRecord>[])}
             </div>
@@ -2356,48 +2333,6 @@ export default function PatientInfo() {
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
                   {new Date(selectedVideoRecord.created_at).toLocaleString()}
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEEGAnalysis && selectedEEGRecord && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#121212] rounded-lg w-full max-w-6xl overflow-auto max-h-[90vh]">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">EEG Analysis</h2>
-                <button
-                  onClick={() => {
-                    setShowEEGAnalysis(false);
-                    setSelectedEEGRecord(null);
-                  }}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="mb-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-gray-400 mb-1">Prediction:</p>
-                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                    {selectedEEGRecord.prediction_result_in_category}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400 mb-1">Probability:</p>
-                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                    {Number(
-                      selectedEEGRecord.prediction_result_in_probability
-                    ).toFixed(5)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-[#1a1a1a] rounded-lg p-4">
-                <EEGAnalysisCharts eegData={selectedEEGRecord.data} />
               </div>
             </div>
           </div>

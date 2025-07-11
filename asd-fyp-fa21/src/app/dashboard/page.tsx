@@ -19,8 +19,6 @@ async function getDashboardData() {
     return {
       eeg_records: 0,
       facial_records: 0,
-      speech_records: 0,
-      video_records: 0,
       asd_patients: 0,
       non_asd_patients: 0,
       success: false,
@@ -30,16 +28,12 @@ async function getDashboardData() {
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
-  const totalPredictions =
-    data.eeg_records +
-    data.facial_records +
-    data.speech_records +
-    data.video_records;
+  const totalPredictions = data.eeg_records + data.facial_records;
 
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4 md:p-6 w-full overflow-hidden">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 w-full">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 w-full">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -70,28 +64,6 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.facial_records}</div>
-            <p className="text-xs text-muted-foreground">Total Predictions</p>
-          </CardContent>
-        </Card>
-        <Card className="w-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Speech Predictions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.speech_records}</div>
-            <p className="text-xs text-muted-foreground">Total Predictions</p>
-          </CardContent>
-        </Card>
-        <Card className="w-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Video Predictions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.video_records}</div>
             <p className="text-xs text-muted-foreground">Total Predictions</p>
           </CardContent>
         </Card>
