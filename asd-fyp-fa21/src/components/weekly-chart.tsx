@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -72,19 +72,40 @@ export function WeeklyChart({ data }: WeeklyChartProps) {
       <BarChart
         data={weeklyData}
         margin={{
-          top: 20,
+          top: 30,
           right: 20,
-          left: 0,
-          bottom: 0,
+          left: 50,
+          bottom: 30,
         }}
       >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="day" />
-        <YAxis />
+        <XAxis
+          dataKey="day"
+          label={{
+            value: "Day of Week",
+            position: "bottom",
+            offset: 20,
+          }}
+        />
+        <YAxis
+          label={{
+            value: "Number of Patients",
+            angle: -90,
+            position: "insideLeft",
+            offset: -10,
+          }}
+        />
+        <Legend verticalAlign="top" height={36} iconType="rect" />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="asd" fill="var(--color-asd)" radius={[4, 4, 0, 0]} />
+        <Bar
+          dataKey="asd"
+          name="ASD Patients"
+          fill="var(--color-asd)"
+          radius={[4, 4, 0, 0]}
+        />
         <Bar
           dataKey="nonAsd"
+          name="Non-ASD Patients"
           fill="var(--color-nonAsd)"
           radius={[4, 4, 0, 0]}
         />
