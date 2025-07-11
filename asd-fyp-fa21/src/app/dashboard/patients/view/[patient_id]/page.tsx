@@ -29,6 +29,7 @@ import EegDataForm from "@/components/eeg-data-form";
 import { toast } from "sonner";
 import React from "react";
 import AudioUploader from "@/components/AudioUploader";
+import { EEGAnalysisCharts } from "@/components/eeg-analysis-charts";
 
 interface Patient {
   _id: string;
@@ -72,6 +73,50 @@ interface EEGRecord {
   created_at: string;
   prediction_result_in_probability?: number;
   updated_at?: string;
+  delta_F_sx: number;
+  delta_F_dx: number;
+  theta_F_sx: number;
+  theta_F_dx: number;
+  low_alpha_F_sx: number;
+  low_alpha_F_dx: number;
+  high_alpha_F_sx: number;
+  high_alpha_F_dx: number;
+  beta_F_sx: number;
+  beta_F_dx: number;
+  gamma_F_sx: number;
+  gamma_F_dx: number;
+  predicted_probabilities: number[];
+  prediction_result_in_encoded_category: number;
+  group: number;
+  time_point: number;
+  patient_id: string;
+  doctor_id: string;
+}
+
+interface EEGData {
+  patient_id: string;
+  doctor_id: string;
+  created_at: string;
+  updated_at: string;
+  delta_F_sx: number;
+  delta_F_dx: number;
+  theta_F_sx: number;
+  theta_F_dx: number;
+  low_alpha_F_sx: number;
+  low_alpha_F_dx: number;
+  high_alpha_F_sx: number;
+  high_alpha_F_dx: number;
+  beta_F_sx: number;
+  beta_F_dx: number;
+  gamma_F_sx: number;
+  gamma_F_dx: number;
+  prediction_result_in_probability: number;
+  predicted_probabilities: number[];
+  prediction_result_in_encoded_category: number;
+  prediction_result_in_category: string;
+  group: number;
+  time_point: number;
+  _id: string;
 }
 
 interface FacialRecord {
@@ -569,6 +614,10 @@ export default function PatientInfo() {
     useState<FacialRecord | null>(null);
 
   const [showEditProfile, setShowEditProfile] = useState<boolean>(false);
+  const [showEEGAnalysis, setShowEEGAnalysis] = useState(false);
+  const [selectedEEGRecord, setSelectedEEGRecord] = useState<EEGData | null>(
+    null
+  );
 
   useEffect(() => {
     async function fetchPatient() {
@@ -670,7 +719,7 @@ export default function PatientInfo() {
 
         setPredictions({
           eeg_data_records: eegPredictions.map((record: any) => ({
-            id: record.id || String(Date.now()),
+            id: record._id || String(Date.now()),
             data: record.data || "",
             prediction_result_in_category:
               record.prediction_result_in_category || "",
@@ -678,6 +727,25 @@ export default function PatientInfo() {
             prediction_result_in_probability:
               record.prediction_result_in_probability || 0,
             updated_at: record.updated_at || "",
+            delta_F_sx: parseFloat(record.delta_F_sx) || 0,
+            delta_F_dx: parseFloat(record.delta_F_dx) || 0,
+            theta_F_sx: parseFloat(record.theta_F_sx) || 0,
+            theta_F_dx: parseFloat(record.theta_F_dx) || 0,
+            low_alpha_F_sx: parseFloat(record.low_alpha_F_sx) || 0,
+            low_alpha_F_dx: parseFloat(record.low_alpha_F_dx) || 0,
+            high_alpha_F_sx: parseFloat(record.high_alpha_F_sx) || 0,
+            high_alpha_F_dx: parseFloat(record.high_alpha_F_dx) || 0,
+            beta_F_sx: parseFloat(record.beta_F_sx) || 0,
+            beta_F_dx: parseFloat(record.beta_F_dx) || 0,
+            gamma_F_sx: parseFloat(record.gamma_F_sx) || 0,
+            gamma_F_dx: parseFloat(record.gamma_F_dx) || 0,
+            predicted_probabilities: record.predicted_probabilities || [],
+            prediction_result_in_encoded_category:
+              record.prediction_result_in_encoded_category || 0,
+            group: record.group || 0,
+            time_point: record.time_point || 0,
+            patient_id: record.patient_id || "",
+            doctor_id: record.doctor_id || "",
           })),
           speech_data_records: speechPredictions.map((record: any) => ({
             id: record.id || String(Date.now()),
@@ -732,6 +800,25 @@ export default function PatientInfo() {
             prediction_result_in_probability:
               data.prediction_result_in_probability || 0,
             updated_at: data.updated_at || new Date().toISOString(),
+            delta_F_sx: data.delta_F_sx,
+            delta_F_dx: data.delta_F_dx,
+            theta_F_sx: data.theta_F_sx,
+            theta_F_dx: data.theta_F_dx,
+            low_alpha_F_sx: data.low_alpha_F_sx,
+            low_alpha_F_dx: data.low_alpha_F_dx,
+            high_alpha_F_sx: data.high_alpha_F_sx,
+            high_alpha_F_dx: data.high_alpha_F_dx,
+            beta_F_sx: data.beta_F_sx,
+            beta_F_dx: data.beta_F_dx,
+            gamma_F_sx: data.gamma_F_sx,
+            gamma_F_dx: data.gamma_F_dx,
+            predicted_probabilities: data.predicted_probabilities,
+            prediction_result_in_encoded_category:
+              data.prediction_result_in_encoded_category,
+            group: data.group,
+            time_point: data.time_point,
+            patient_id: data.patient_id,
+            doctor_id: data.doctor_id,
           },
         ],
       }));
@@ -1134,30 +1221,28 @@ export default function PatientInfo() {
 
     let formData = new FormData();
     formData.append("image", multimodalFile.image!);
-    formData.append("speech", multimodalFile.speech!)
-    formData.append("video", multimodalFile.speech!)
+    formData.append("speech", multimodalFile.speech!);
+    formData.append("video", multimodalFile.speech!);
     formData.append("eeg", JSON.stringify(multimodalEEGData));
 
     try {
-      const accessToken = localStorage.getItem("access_token")
+      const accessToken = localStorage.getItem("access_token");
       const response = await fetch(
         `http://localhost:8000/api/upload/multimodal/${patient_id}`,
         {
           method: "POST",
           headers: {
-            access_token: accessToken || ""
+            access_token: accessToken || "",
           },
           body: formData,
         }
-      )
+      );
 
-      const data = await response.json()
-      console.log(data)
-
+      const data = await response.json();
+      console.log(data);
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
-
 
     // try {
     //   const formData = new FormData();
@@ -1212,6 +1297,11 @@ export default function PatientInfo() {
     // } finally {
     //   setIsMultimodalUploading(false);
     // }
+  };
+
+  const openEEGAnalysis = (record: EEGData) => {
+    setSelectedEEGRecord(record);
+    setShowEEGAnalysis(true);
   };
 
   if (loading) {
@@ -1590,8 +1680,11 @@ export default function PatientInfo() {
                 {
                   header: "Prediction Probablility",
                   accessor: (rec: EEGRecord) =>
-                    Number(rec.prediction_result_in_probability).toFixed(5) ||
-                    "-",
+                    rec.prediction_result_in_probability
+                      ? `${(rec.prediction_result_in_probability * 100).toFixed(
+                          2
+                        )}%`
+                      : "-",
                 },
                 {
                   header: "Created At",
@@ -1606,6 +1699,51 @@ export default function PatientInfo() {
                     rec.updated_at
                       ? new Date(rec.updated_at).toDateString()
                       : "-",
+                },
+                {
+                  header: "Actions",
+                  accessor: (rec: EEGRecord) => {
+                    return (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                        onClick={() =>
+                          openEEGAnalysis({
+                            _id: rec.id,
+                            patient_id: rec.patient_id,
+                            doctor_id: rec.doctor_id,
+                            created_at: rec.created_at,
+                            updated_at: rec.updated_at || "",
+                            delta_F_sx: rec.delta_F_sx,
+                            delta_F_dx: rec.delta_F_dx,
+                            theta_F_sx: rec.theta_F_sx,
+                            theta_F_dx: rec.theta_F_dx,
+                            low_alpha_F_sx: rec.low_alpha_F_sx,
+                            low_alpha_F_dx: rec.low_alpha_F_dx,
+                            high_alpha_F_sx: rec.high_alpha_F_sx,
+                            high_alpha_F_dx: rec.high_alpha_F_dx,
+                            beta_F_sx: rec.beta_F_sx,
+                            beta_F_dx: rec.beta_F_dx,
+                            gamma_F_sx: rec.gamma_F_sx,
+                            gamma_F_dx: rec.gamma_F_dx,
+                            prediction_result_in_probability:
+                              rec.prediction_result_in_probability || 0,
+                            predicted_probabilities:
+                              rec.predicted_probabilities,
+                            prediction_result_in_encoded_category:
+                              rec.prediction_result_in_encoded_category,
+                            prediction_result_in_category:
+                              rec.prediction_result_in_category,
+                            group: rec.group,
+                            time_point: rec.time_point,
+                          })
+                        }
+                      >
+                        <Eye size={18} />
+                      </Button>
+                    );
+                  },
                 },
               ] as TableColumn<EEGRecord>[])}
             </div>
@@ -2333,6 +2471,48 @@ export default function PatientInfo() {
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
                   {new Date(selectedVideoRecord.created_at).toLocaleString()}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEEGAnalysis && selectedEEGRecord && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121212] rounded-lg w-full max-w-6xl overflow-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">EEG Analysis</h2>
+                <button
+                  onClick={() => {
+                    setShowEEGAnalysis(false);
+                    setSelectedEEGRecord(null);
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-400 mb-1">Prediction:</p>
+                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                    {selectedEEGRecord.prediction_result_in_category}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-1">Probability:</p>
+                  <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                    {Number(
+                      selectedEEGRecord.prediction_result_in_probability
+                    ).toFixed(5)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#1a1a1a] rounded-lg p-4">
+                <EEGAnalysisCharts eegData={selectedEEGRecord} />
               </div>
             </div>
           </div>
