@@ -6,8 +6,9 @@ import { User } from "../types/user";
 import { redirect } from "next/navigation";
 import { signupSchema } from "@/schemas/signup-schema";
 import { cookies } from "next/headers";
+import { API_BASE_URL } from "./config";
 
-const endpoint = "http://localhost:8000/api";
+const endpoint = API_BASE_URL;
 
 type LoginResponseSuccess = {
   detail: string;

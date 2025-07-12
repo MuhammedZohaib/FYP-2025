@@ -8,7 +8,9 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
-const inter = Inter();
+const inter = Inter({
+  subsets: ["latin"],
+});
 
 export default function RootLayout({
   children,

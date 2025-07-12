@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PDFViewer from "@/components/pdf-viewer";
+import { API_BASE_URL } from "@/lib/config";
 
 interface Author {
   name: string;
@@ -61,9 +62,7 @@ export default function ResearchPapersList() {
       }
 
       try {
-        const response = await fetch(
-          "http://localhost:8000/api/latest-research"
-        );
+        const response = await fetch(`${API_BASE_URL}/latest-research`);
         if (!response.ok) {
           throw new Error(
             `Failed to fetch research papers: ${response.status}`

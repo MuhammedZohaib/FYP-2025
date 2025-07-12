@@ -46,6 +46,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import { logout } from "@/lib/actions";
+import { API_BASE_URL } from "@/lib/config";
 
 export function AppSidebar() {
   const [openItems, setOpenItems] = React.useState<Record<string, boolean>>({
@@ -72,10 +73,9 @@ export function AppSidebar() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         };
-        const response = await fetch(
-          "http://localhost:8000/api/doctor/profile",
-          { headers }
-        );
+        const response = await fetch(`${API_BASE_URL}/doctor/profile`, {
+          headers,
+        });
         if (!response.ok) {
           throw new Error("Failed to fetch user data");
         }

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Loading from "./loading";
+import { API_BASE_URL } from "@/lib/config";
 
 // Doctor type
 interface DoctorData {
@@ -44,15 +45,12 @@ export default function DoctorProfile() {
     const fetchDoctorProfile = async () => {
       try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          "http://localhost:8000/api/doctor/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await fetch(`${API_BASE_URL}/doctor/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
         if (!response.ok) {
           throw new Error("Failed to fetch doctor profile");

@@ -2,18 +2,19 @@
 
 import { patientSchema } from "@/schemas/patient-schema";
 import { z } from "zod";
+import { API_BASE_URL } from "./config";
 
-const endpoint = "http://localhost:8000/api";
+const endpoint = API_BASE_URL;
 
 export async function addPatient(
   data: z.infer<typeof patientSchema>,
-  token: string,
+  token: string
 ) {
   const result = patientSchema.safeParse(data);
 
   if (!result.success) return { error: result.error };
 
-  console.log(result.data)
+  console.log(result.data);
 
   const res = await fetch(`${endpoint}/patient/new`, {
     method: "POST",
@@ -22,6 +23,6 @@ export async function addPatient(
   });
 
   const json = await res.json();
-  console.log(json)
+  console.log(json);
   return json;
 }

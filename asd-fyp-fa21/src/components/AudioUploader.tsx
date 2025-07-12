@@ -1,31 +1,38 @@
-'use client';
+"use client";
 
-import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   LucideMic,
   LucideStopCircle,
   LucideUpload,
   LucideLoader,
   LucideX,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/config";
 
 type AudioUploaderProps = {
   onClose: () => void;
   patient_id: string;
-  update: (data: any) => void
+  update: (data: any) => void;
 };
 
-const url = 'http://localhost:8000/api';
+const url = API_BASE_URL;
 
-export default function AudioUploader({ onClose, patient_id, update }: AudioUploaderProps) {
+export default function AudioUploader({
+  onClose,
+  patient_id,
+  update,
+}: AudioUploaderProps) {
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+    null
+  );
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const audioChunks = useRef<Blob[]>([]);
@@ -43,7 +50,7 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
     audioChunks.current = [];
 
     recorder.ondataavailable = (e) => {
@@ -51,11 +58,11 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(audioChunks.current, { type: 'audio/webm' });
+      const blob = new Blob(audioChunks.current, { type: "audio/webm" });
       const url = URL.createObjectURL(blob);
       setAudioURL(url);
 
-      const file = new File([blob], 'recording.webm', { type: 'audio/webm' });
+      const file = new File([blob], "recording.webm", { type: "audio/webm" });
       setAudioFile(file);
     };
 
@@ -76,24 +83,24 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
 
     setUploading(true);
     const formData = new FormData();
-    formData.append('audio', audioFile);
+    formData.append("audio", audioFile);
 
     try {
       const res = await fetch(`${url}/upload/speech/${patient_id}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          access_token: localStorage.getItem('access_token') || '',
+          access_token: localStorage.getItem("access_token") || "",
         },
         body: formData,
       });
 
       const result = await res.json();
-      update(result.record)
-      console.log('Upload success:', result);
-      toast.success("Audio Prediction Successful")
+      update(result.record);
+      console.log("Upload success:", result);
+      toast.success("Audio Prediction Successful");
     } catch (err) {
-      console.error('Upload failed:', err);
-      toast.error("Audio Prediction Error")
+      console.error("Upload failed:", err);
+      toast.error("Audio Prediction Error");
     } finally {
       setUploading(false);
     }
@@ -111,7 +118,9 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
       <CardContent className="space-y-4 pt-6">
         <div className="space-y-2 text-center">
           <h2 className="text-xl font-semibold">Audio Upload & Recorder</h2>
-          <p className="text-sm text-muted-foreground">Upload or record an audio file</p>
+          <p className="text-sm text-muted-foreground">
+            Upload or record an audio file
+          </p>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -120,16 +129,24 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
             type="file"
             accept="audio/*"
             onChange={handleUpload}
-            className={cn('cursor-pointer')}
+            className={cn("cursor-pointer")}
           />
 
           <div className="flex gap-2 justify-center">
             {!isRecording ? (
-              <Button onClick={startRecording} variant="default" className="gap-2">
+              <Button
+                onClick={startRecording}
+                variant="default"
+                className="gap-2"
+              >
                 <LucideMic className="w-4 h-4" /> Start Recording
               </Button>
             ) : (
-              <Button onClick={stopRecording} variant="destructive" className="gap-2">
+              <Button
+                onClick={stopRecording}
+                variant="destructive"
+                className="gap-2"
+              >
                 <LucideStopCircle className="w-4 h-4" /> Stop Recording
               </Button>
             )}
@@ -137,7 +154,12 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
 
           {audioURL && (
             <div className="mt-4">
-              <audio ref={audioRef} controls src={audioURL} className="w-full rounded" />
+              <audio
+                ref={audioRef}
+                controls
+                src={audioURL}
+                className="w-full rounded"
+              />
               {audioFile && (
                 <p className="mt-2 text-xs text-muted-foreground text-center">
                   {audioFile.name}
@@ -150,7 +172,8 @@ export default function AudioUploader({ onClose, patient_id, update }: AudioUplo
               >
                 {uploading ? (
                   <>
-                    <LucideLoader className="w-4 h-4 animate-spin" /> Uploading...
+                    <LucideLoader className="w-4 h-4 animate-spin" />{" "}
+                    Uploading...
                   </>
                 ) : (
                   <>

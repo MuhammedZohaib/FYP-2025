@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, Home, ChevronRight } from "lucide-react";
 import Loading from "./loading";
 import Link from "next/link";
+import { API_BASE_URL } from "@/lib/config";
 
 interface DoctorData {
   _id: string;
@@ -43,15 +44,12 @@ export default function EditProfile() {
     const fetchDoctorProfile = async () => {
       try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          "http://localhost:8000/api/doctor/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await fetch(`${API_BASE_URL}/doctor/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
         if (!response.ok) {
           throw new Error("Failed to fetch doctor profile");
@@ -93,7 +91,7 @@ export default function EditProfile() {
 
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch("http://localhost:8000/api/doctor/profile", {
+      const response = await fetch(`${API_BASE_URL}/doctor/profile`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,

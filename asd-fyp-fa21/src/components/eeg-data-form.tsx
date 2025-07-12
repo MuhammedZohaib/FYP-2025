@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { API_BASE_URL } from "@/lib/config";
 
-const endpoint = "http://localhost:8000/api";
+const endpoint = API_BASE_URL;
 
 interface Patient {
   _id: string;

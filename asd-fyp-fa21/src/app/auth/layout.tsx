@@ -9,7 +9,9 @@ import { BackgroundLines } from "@/components/ui/background-lines";
 import { AnimatedTestimonialsDemo } from "@/components/testimonialDemo";
 import { useEffect, useState } from "react";
 
-const inter = Inter();
+const inter = Inter({
+  subsets: ["latin"],
+});
 
 export default function AuthLayout({
   children,

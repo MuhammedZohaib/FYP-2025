@@ -2,10 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsChart } from "@/components/stats-chart";
 import { WeeklyChart } from "@/components/weekly-chart";
 import { PatientsTable } from "@/components/patients-table";
+import { API_BASE_URL } from "@/lib/config";
 
 async function getDashboardData() {
   try {
-    const res = await fetch("http://localhost:8000/api/dashboard/data", {
+    const res = await fetch(`${API_BASE_URL}/dashboard/data`, {
       cache: "no-store",
     });
 

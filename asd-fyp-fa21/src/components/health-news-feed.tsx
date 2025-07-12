@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { API_BASE_URL } from "@/lib/config";
 
 interface NewsItem {
   title: string;
@@ -86,7 +87,7 @@ export default function HealthNewsFeed() {
         }
 
         // If no valid cache, fetch from the API
-        const response = await fetch("http://localhost:8000/api/latest-news", {
+        const response = await fetch(`${API_BASE_URL}/latest-news`, {
           cache: "no-store",
         });
 
