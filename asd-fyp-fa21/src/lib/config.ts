@@ -8,7 +8,7 @@ export const getApiBaseUrl = () => {
   // Fallback logic based on environment
   if (process.env.NODE_ENV === "production") {
     // You can update this with your production API URL
-    return "https://131.163.80.80:8000/api";
+    return "http://131.163.80.80:8000/api";
   }
 
   // Default to localhost for development

@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import React from "react";
 import AudioUploader from "@/components/AudioUploader";
 import { EEGAnalysisCharts } from "@/components/eeg-analysis-charts";
+import { API_BASE_URL } from "@/lib/config";
 
 interface Patient {
   _id: string;
@@ -227,17 +228,14 @@ const EditProfile = ({
         doctor: "",
       };
 
-      const response = await fetch(
-        `http://localhost:8000/api/patient/${patient._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            access_token: accessToken,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/patient/${patient._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: accessToken,
+        },
+        body: JSON.stringify(updateData),
+      });
 
       const data = await response.json();
 
@@ -667,7 +665,7 @@ export default function PatientInfo() {
       try {
         const accessToken = localStorage.getItem("access_token");
         const response = await fetch(
-          `http://localhost:8000/api/patient/${patient_id}/predictions`,
+          `${API_BASE_URL}/patient/${patient_id}/predictions`,
           {
             method: "GET",
             headers: {
@@ -899,7 +897,7 @@ export default function PatientInfo() {
 
       const accessToken = localStorage.getItem("access_token");
       const response = await fetch(
-        `http://localhost:8000/api/upload/video/${patient_id}`,
+        `${API_BASE_URL}/upload/video/${patient_id}`,
         {
           method: "POST",
           headers: {
@@ -958,16 +956,13 @@ export default function PatientInfo() {
       setModelLoadingError(null);
 
       const accessToken = localStorage.getItem("access_token");
-      response = await fetch(
-        "http://localhost:8000/api/upload/model/video/status",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            access_token: accessToken || "",
-          },
-        }
-      );
+      response = await fetch(`${API_BASE_URL}/upload/model/video/status`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: accessToken || "",
+        },
+      });
 
       responseData = await response.json();
 
@@ -1087,7 +1082,7 @@ export default function PatientInfo() {
 
       const accessToken = localStorage.getItem("access_token");
       const response = await fetch(
-        `http://localhost:8000/api/upload/facial/${patient_id}`,
+        `${API_BASE_URL}/upload/facial/${patient_id}`,
         {
           method: "POST",
           headers: {
@@ -1228,7 +1223,7 @@ export default function PatientInfo() {
     try {
       const accessToken = localStorage.getItem("access_token");
       const response = await fetch(
-        `http://localhost:8000/api/upload/multimodal/${patient_id}`,
+        `${API_BASE_URL}/upload/multimodal/${patient_id}`,
         {
           method: "POST",
           headers: {

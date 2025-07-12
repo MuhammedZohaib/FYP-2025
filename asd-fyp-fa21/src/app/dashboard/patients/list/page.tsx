@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { API_BASE_URL } from "@/lib/config";
 
 interface Patient {
   _id: string;
@@ -55,7 +56,7 @@ export default function PatientsList() {
     async function fetchPatients() {
       try {
         const accessToken = localStorage.getItem("access_token");
-        const response = await fetch("http://localhost:8000/api/patient/all", {
+        const response = await fetch(`${API_BASE_URL}/patient/all`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
