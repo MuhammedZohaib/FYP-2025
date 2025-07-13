@@ -4,12 +4,13 @@ from DatabaseConnector import db
 
 
 class VideoRecord:
-    def __init__(self, patient_id: str, data: str, created_at: datetime, prediction: str, confidence: float = 0.0):
+    def __init__(self, patient_id: str, data: str, created_at: datetime, prediction: str, confidence: float = 0.0, multimodal: bool = False):
         self.patient_id = patient_id
         self.data = data
         self.date = created_at
         self.prediction = prediction
         self.confidence = confidence
+        self.multimodal = multimodal
 
     def save_video_record(self):
         collection = db.get_collection('video_records')

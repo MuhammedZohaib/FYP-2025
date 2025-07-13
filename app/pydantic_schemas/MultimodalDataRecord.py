@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Dict, Optional
+from bson import ObjectId
 from pydantic import BaseModel
 
 class MultimodalDataRecordSchema(BaseModel):

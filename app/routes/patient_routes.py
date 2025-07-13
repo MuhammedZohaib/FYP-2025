@@ -13,6 +13,7 @@ from models.mongodb.FacialDataRecord import FacialDataRecord
 from models.mongodb.VideoDataRecord import VideoRecord
 from models.mongodb.Patient import Patient
 from models.mongodb.SpeechDataRecord import SpeechRecord
+from models.mongodb.MultimodalDataRecord import MultimodalDataRecord
 from pydantic_schemas.Patient import PatientSchema
 
 router = APIRouter(prefix="/patient", tags=["patient"])
@@ -141,7 +142,8 @@ def get_predictions(patient_id: str, request: Request):
             "prediction": record["prediction"],
             "data": record.get("data", ""),
             "created_at": record.get("date", ""),
-            "confidence": record.get("confidence", 0)
+            "confidence": record.get("confidence", 0),
+            "multimodal": record.get("multimodal", False)
         } for record in facial_records
     ]
     
@@ -152,7 +154,8 @@ def get_predictions(patient_id: str, request: Request):
             "id": str(record["_id"]),
             "data": record.get("data", ""),
             "prediction": record.get("prediction", "unknown"),
-            "created_at": record.get("date", "")
+            "created_at": record.get("date", ""),
+            "multimodal": record.get("multimodal", False)
         } for record in speech_records
     ]
     
@@ -166,11 +169,33 @@ def get_predictions(patient_id: str, request: Request):
             "data": record.get("data", ""),
             "prediction": record.get("prediction", "unknown"),
             "created_at": record.get("date", ""),
-            "confidence": record.get("confidence", 0)
+            "confidence": record.get("confidence", 0),
+            "multimodal": record.get("multimodal", False)
         } for record in video_records
     ]
-    
+
     logger.info(f"Formatted {len(video_predictions)} video predictions")
+
+    mutlimodal_records = MultimodalDataRecord.find_by_patient_id(patient_id)
+    multimodal_predictions = [
+        {
+            "id": str(record["_id"]),
+            "patient_id": str(record.get("patient_id")),
+            "eeg_record_id": str(record.get("eeg_record_id")),
+            "facial_record_id": str(record.get("facial_record_id")),
+            "speech_record_id": str(record.get("speech_record_id")),
+            "video_record_id": str(record.get("video_record_id")),
+            "eeg_confidence": record.get("eeg_confidence"),
+            "facial_confidence": record.get("facial_confidence"),
+            "speech_confidence": record.get("speech_confidence"),
+            "video_confidence": record.get("video_confidence"),
+            "final_prediction": record.get("final_prediction"),
+            "final_confidence": record.get("final_confidence"),
+            "date": record.get("date")
+
+        } for record in mutlimodal_records
+    ]
+    
 
     return {
         "detail": "Predictions retrieved successfully",
@@ -178,6 +203,7 @@ def get_predictions(patient_id: str, request: Request):
         "facial_predictions": facial_predictions,
         "speech_predictions": speech_predictions,
         "video_predictions": video_predictions,
+        "multimodal_predictions": multimodal_predictions,
         "success": True
     }
 

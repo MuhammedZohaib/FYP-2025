@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class SpeechDataRecordSchema(BaseModel):
@@ -6,3 +7,4 @@ class SpeechDataRecordSchema(BaseModel):
     data: str
     created_at: str
     prediction: str
+    multimodal: Optional[bool] = False

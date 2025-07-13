@@ -4,11 +4,12 @@ from DatabaseConnector import db
 
 
 class SpeechRecord:
-    def __init__(self, patient_id: str, data: str, created_at: datetime, prediction: str):
+    def __init__(self, patient_id: str, data: str, created_at: datetime, prediction: str, multimodal: bool = False):
         self.patient_id = patient_id
         self.data = data
         self.date = created_at
         self.prediction = prediction
+        self.multimodal = multimodal
 
     def save_speech_record(self):
         collection = db.get_collection('speech_records')

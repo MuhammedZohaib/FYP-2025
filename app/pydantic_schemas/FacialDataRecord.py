@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
+from typing import Optional
 
 
 class FacialDataRecordSchema(BaseModel):
@@ -19,3 +20,4 @@ class FacialDataRecordSchema(BaseModel):
     prediction_result_in_encoded_category_of_yolo_model: int
     prediction_result_in_category_of_efficentnet_model: str
     prediction_result_in_category_of_yolo_model: str
+    multimodal: Optional[bool]

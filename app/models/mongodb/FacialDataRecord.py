@@ -14,7 +14,7 @@ class FacialDataRecord:
                  prediction_result_in_encoded_category_of_efficentnet_model: int,
                  prediction_result_in_encoded_category_of_yolo_model: int,
                  prediction_result_in_category_of_efficentnet_model: str,
-                 prediction_result_in_category_of_yolo_model: str):
+                 prediction_result_in_category_of_yolo_model: str, multimodal: bool = False):
         self.patient_id = patient_id
         self.data = data
         self.date = date
@@ -28,6 +28,7 @@ class FacialDataRecord:
         self.prediction_result_in_category_of_yolo_model = prediction_result_in_category_of_yolo_model
         self.prediction = prediction
         self.confidence = confidence
+        self.multimodal = multimodal
 
     def save(self):
         collection = db.get_collection('facial_records')

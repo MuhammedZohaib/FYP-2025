@@ -107,6 +107,7 @@ class VideoDataRecordSchema(BaseModel):
     created_at: str
     prediction: str
     confidence: float = 0.0
+    multimodal: Optional[bool] = False
 
 @router.post("/facial/{patient_id}")
 async def upload_image(patient_id: str, request: Request, image: UploadFile = File(...)):
@@ -594,21 +595,25 @@ async def get_multimodal_inference(
         )
 
     eeg_data = json.loads(eeg)
-
-    if not video.filename or not video.filename.lower().endswith(('.mp4', '.avi', '.mov')):
+    
+    if not video.filename.lower().endswith(('.mp4', '.avi', '.mov')):
         raise HTTPException(
             status_code=400, 
             detail="Invalid file format. Please upload MP4, AVI, or MOV files only."
         )
 
-    video_contents = await video.read()
-    video_cloudinary_url = await upload_video_to_cloudinary(video_contents, patient_id)
-
     if not speech.content_type.startswith("audio"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is not an audio file")
 
-    speech_contents = await speech.read()
-    speech_cloudinary_url = await upload_video_to_cloudinary(speech_contents, patient_id)
+    video_confidence = 0.0
+    speech_confidence = 0.0
+    facial_confidence = 0.0
+    eeg_confidence = 0.0
+
+    eeg_id = ""
+    video_id = ""
+    speech_id = ""
+    facial_id = ""
 
     # ==========================================================================
     # VIDEO PROCESSING =========================================================
@@ -617,6 +622,9 @@ async def get_multimodal_inference(
     try:
         if not model:
             raise ValueError("Video model is not loaded. Please try again later.")
+
+        video_contents = await video.read()
+        video_cloudinary_url = await upload_video_to_cloudinary(video_contents, patient_id, "fyp-multimodal")
             
         pathway_tensors = process_video(video_contents)
             
@@ -633,10 +641,15 @@ async def get_multimodal_inference(
             data=video_cloudinary_url,
             created_at=datetime.now(),
             prediction=label,
-            confidence=confidence * 1.3
+            confidence=confidence * 1.3,
+            multimodal=True
         )
 
+        video_confidence = confidence * 1.3
+
         record_id = record.save_video_record()
+
+        video_id = record_id
         
         if not record_id:
             raise HTTPException(
@@ -655,9 +668,10 @@ async def get_multimodal_inference(
             data=video_cloudinary_url,
             created_at=str(datetime.now()),
             prediction=label,
-            confidence=confidence * 1.3
+            confidence=confidence * 1.3,
+            multimodal=True
         )
-        
+
         if "video_records" not in patient_dict:
             patient_dict["video_records"] = []
             
@@ -674,6 +688,8 @@ async def get_multimodal_inference(
     # ===============================================================
     # SPEECH PROCESSING =============================================
     # ===============================================================
+
+    speech_contents = await speech.read()
 
     temp_filename = f"{patient_id}_{speech.filename}"
     temp_file_location = os.path.join(UPLOADS_DIR_SPEECH, temp_filename)
@@ -701,7 +717,7 @@ async def get_multimodal_inference(
     prediction = "HL-ASD" if speech_prediction == 1 else "Typical"
 
     try:
-        speech_cloudinary_url = await upload_audio_to_cloudinary(speech_contents, patient_id)
+        speech_cloudinary_url = await upload_audio_to_cloudinary(speech_contents, patient_id, "fyp-multimodal")
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to upload to Cloudinary: {e}")
 
@@ -711,17 +727,24 @@ async def get_multimodal_inference(
         patient_id=patient_id,
         data=speech_cloudinary_url,
         created_at=str(datetime.now()),
-        prediction=prediction
+        prediction=prediction,
+        multimodal=True
     )
+
+    speech_confidence = speech_prediction.__int__()
 
     speech_record = SpeechRecord(
         patient_id=patient_id,
         data=speech_cloudinary_url,
         created_at=datetime.now(),
-        prediction=prediction
+        prediction=prediction,
+        multimodal=True
     )
 
     speech_inserted_id = speech_record.save_speech_record()
+
+    speech_id = speech_inserted_id
+
     if not speech_inserted_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add speech record")
 
@@ -791,7 +814,7 @@ async def get_multimodal_inference(
     # if score is greater than 0.5, then set Prediction to positive, else negative
     prediction = predicted_class_name
 
-    image_cloudianry_url = await upload_image_to_cloudinary(image_contents, patient_id)
+    image_cloudianry_url = await upload_image_to_cloudinary(image_contents, patient_id, "fyp-multimodal")
     os.remove(file_location)
 
     facial_data_record = FacialDataRecordSchema(data=image_cloudianry_url, date=datetime.now(), prediction=str(prediction),
@@ -803,7 +826,8 @@ async def get_multimodal_inference(
                                                 prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
                                                 prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
                                                 prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
-                                                prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+                                                prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model,
+                                                multimodal=True)
     facial_record = FacialDataRecord(patient_id=patient_id, data=image_cloudianry_url, prediction=str(prediction),
                                      confidence=float(combined_conf), date=datetime.now(),
                                      prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
@@ -813,11 +837,18 @@ async def get_multimodal_inference(
                                      prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
                                      prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
                                      prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
-                                     prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+                                     prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model,
+                                     multimodal=True)
     facial_record_id = facial_record.save()
+
+
     if not facial_record_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add facial record")
     patient_dict["facial_data_records"].append(facial_data_record.model_dump())
+
+    facial_confidence = float(combined_conf)
+
+    facial_id = facial_record_id
 
     updated_patient = Patient.update(patient_id, patient_dict)
     if not updated_patient:
@@ -852,7 +883,7 @@ async def get_multimodal_inference(
     doctor_id: str = result.get("id")
 
     eeg_data_2 = EEGDataRecord(
-        **data,
+        **eeg_data,
         doctor_id=doctor_id,
         patient_id=patient_id,
         created_at=datetime.now(),
@@ -860,9 +891,12 @@ async def get_multimodal_inference(
         prediction_result_in_probability=predicted_probs[predicted_class],
         predicted_probabilities=predicted_probs,
         prediction_result_in_encoded_category=predicted_class,
-        prediction_result_in_category=prediction_result_in_category
+        prediction_result_in_category=prediction_result_in_category,
+        multimodal=True
     )
-    eeg_data_2.save()
+    eeg_id = eeg_data_2.save()
+
+    eeg_confidence = predicted_probs[predicted_class]
     
     # Initialize video_records if it doesn't exist
     if "video_records" not in patient_dict:
@@ -897,124 +931,77 @@ async def get_multimodal_inference(
     if not updated_patient:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update patient")
 
-    # new_patient = Patient(**patient_dict)
-
     # Initialize weights
-    # weights = request_data.modality_weights or {
-    #     "eeg": 0.35,
-    #     "facial": 0.25,
-    #     "speech": 0.20,
-    #     "video": 0.20
-    # }
+    weights = {
+        "eeg": 0.35,
+        "facial": 0.25,
+        "speech": 0.20,
+        "video": 0.20
+    }
 
-    # Initialize variables for weighted average
     weighted_sum = 0
     total_weight = 0
     confidences = {}
-    record_ids = {}
 
-    # # Process EEG data if available
-    # if request_data.eeg_record_id:
-    #     eeg_record = EEGDataRecord.find_by_id(request_data.eeg_record_id)
-    #     if eeg_record:
-    #         eeg_conf = float(eeg_record["confidence"])
-    #         if eeg_record["prediction"] == "Typical":
-    #             eeg_conf = 1 - eeg_conf
-    #         weighted_sum += weights["eeg"] * eeg_conf
-    #         total_weight += weights["eeg"]
-    #         confidences["eeg"] = eeg_conf
-    #         record_ids["eeg"] = request_data.eeg_record_id
-    #
-    # # Process Facial data if available
-    # if request_data.facial_record_id:
-    #     facial_record = FacialDataRecord.find_by_id(request_data.facial_record_id)
-    #     if facial_record:
-    #         facial_conf = float(facial_record["confidence"])
-    #         if facial_record["prediction"] == "Typical":
-    #             facial_conf = 1 - facial_conf
-    #         weighted_sum += weights["facial"] * facial_conf
-    #         total_weight += weights["facial"]
-    #         confidences["facial"] = facial_conf
-    #         record_ids["facial"] = request_data.facial_record_id
-    #
-    # # Process Speech data if available
-    # if request_data.speech_record_id:
-    #     speech_record = SpeechRecord.find_by_id(request_data.speech_record_id)
-    #     if speech_record:
-    #         speech_conf = float(speech_record["confidence"])
-    #         if speech_record["prediction"] == "Typical":
-    #             speech_conf = 1 - speech_conf
-    #         weighted_sum += weights["speech"] * speech_conf
-    #         total_weight += weights["speech"]
-    #         confidences["speech"] = speech_conf
-    #         record_ids["speech"] = request_data.speech_record_id
-    #
-    # # Process Video data if available
-    # if request_data.video_record_id:
-    #     video_record = VideoRecord.find_by_id(request_data.video_record_id)
-    #     if video_record:
-    #         video_conf = float(video_record["confidence"])
-    #         if video_record["prediction"] == "Typical":
-    #             video_conf = 1 - video_conf
-    #         weighted_sum += weights["video"] * video_conf
-    #         total_weight += weights["video"]
-    #         confidences["video"] = video_conf
-    #         record_ids["video"] = request_data.video_record_id
-    #
-    # if total_weight == 0:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="No valid records provided for inference"
-    #     )
-    #
-    # # Calculate final confidence and prediction
-    # final_confidence = weighted_sum / total_weight
-    # final_prediction = "HL-ASD" if final_confidence > 0.5 else "Typical"
-    #
-    # if final_prediction == "Typical":
-    #     final_confidence = 1 - final_confidence
-    #
+
+    weighted_sum += weights["eeg"] * eeg_confidence
+    total_weight += weights["eeg"]
+    confidences["eeg"] = eeg_confidence
+
+    weighted_sum += weights["facial"] * facial_confidence
+    total_weight += weights["facial"]
+    confidences["facial"] = facial_confidence
+
+    weighted_sum += weights["speech"] * speech_confidence
+    total_weight += weights["speech"]
+    confidences["speech"] = speech_confidence
+
+    weighted_sum += weights["video"] * video_confidence
+    total_weight += weights["video"]
+    confidences["video"] = video_confidence
+
+    final_confidence = weighted_sum / total_weight
+    final_prediction = "HL-ASD" if final_confidence > 0.5 else "Typical"
+
     # # Create and save multimodal record
-    # multimodal_record = MultimodalDataRecord(
-    #     patient_id=patient_id,
-    #     eeg_record_id=record_ids.get("eeg"),
-    #     facial_record_id=record_ids.get("facial"),
-    #     speech_record_id=record_ids.get("speech"),
-    #     video_record_id=record_ids.get("video"),
-    #     eeg_confidence=confidences.get("eeg", 0.0),
-    #     facial_confidence=confidences.get("facial", 0.0),
-    #     speech_confidence=confidences.get("speech", 0.0),
-    #     video_confidence=confidences.get("video", 0.0),
-    #     final_prediction=final_prediction,
-    #     final_confidence=final_confidence,
-    #     modality_weights=weights
-    # )
-    #
-    # multimodal_record.save()
-    #
-    # # Update patient's ASD status based on final prediction
-    # if final_confidence > 0.7:  # Only update if confidence is high enough
-    #     Patient.update_asd_status(
-    #         patient_id=patient_id,
-    #         asd_status=final_prediction == "HL-ASD"
-    #     )
+    multimodal_record = MultimodalDataRecord(
+        patient_id=patient_id,
+        eeg_record_id=eeg_id,
+        facial_record_id=facial_id,
+        speech_record_id=str(speech_id),
+        video_record_id=str(video_id),
+        eeg_confidence=confidences.get("eeg", 0.0),
+        facial_confidence=confidences.get("facial", 0.0),
+        speech_confidence=confidences.get("speech", 0.0),
+        video_confidence=confidences.get("video", 0.0),
+        final_prediction=final_prediction,
+        final_confidence=final_confidence,
+        modality_weights=weights
+    )
 
-    # return MultimodalDataRecordSchema(
-    #     patient_id=patient_id,
-    #     eeg_record_id=record_ids.get("eeg"),
-    #     facial_record_id=record_ids.get("facial"),
-    #     speech_record_id=record_ids.get("speech"),
-    #     video_record_id=record_ids.get("video"),
-    #     eeg_confidence=confidences.get("eeg", 0.0),
-    #     facial_confidence=confidences.get("facial", 0.0),
-    #     speech_confidence=confidences.get("speech", 0.0),
-    #     video_confidence=confidences.get("video", 0.0),
-    #     final_prediction=final_prediction,
-    #     final_confidence=final_confidence,
-    #     date=datetime.now(),
-    #     modality_weights=weights
-    # )
+    multimodal_record.save()
+
+    multimodal_schema = MultimodalDataRecordSchema(
+        patient_id=patient_id,
+        eeg_record_id=eeg_id,
+        facial_record_id=facial_id,
+        speech_record_id=str(speech_id),
+        video_record_id=str(video_id),
+        eeg_confidence=confidences.get("eeg", 0.0),
+        facial_confidence=confidences.get("facial", 0.0),
+        speech_confidence=confidences.get("speech", 0.0),
+        video_confidence=confidences.get("video", 0.0),
+        final_prediction=final_prediction,
+        final_confidence=final_confidence,
+        modality_weights=weights,
+        date=datetime.now()
+    )
 
     return {
-        'success':True
+        'success':True,
+        'data': multimodal_schema.model_dump(),
+        'speech_record': speech_data_record.model_dump(),
+        'eeg_record': eeg_data_2.__dict__,
+        'facial_record': facial_data_record.model_dump(),
+        'video_record': video_data_record.model_dump()
     }

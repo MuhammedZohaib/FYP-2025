@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, JSX } from "react";
+import { useState, useEffect, useRef, JSX, ReactNode } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -64,6 +64,7 @@ interface SpeechRecord {
   data: string;
   prediction: "HL-ASD" | "Typical";
   date: string;
+  multimodal?: boolean;
 }
 
 interface EEGRecord {
@@ -91,6 +92,7 @@ interface EEGRecord {
   time_point: number;
   patient_id: string;
   doctor_id: string;
+  multimodal?: boolean;
 }
 
 interface EEGData {
@@ -125,6 +127,7 @@ interface FacialRecord {
   created_at: string;
   prediction?: string;
   confidence?: number;
+  multimodal?: boolean;
 }
 
 interface VideoRecord {
@@ -133,12 +136,23 @@ interface VideoRecord {
   prediction: string;
   created_at: string;
   confidence?: number;
+  multimodal?: boolean
 }
 
 interface MultimodalRecord {
   id: string;
-  details?: string;
-  created_at: string;
+  patient_id: string;
+  eeg_record_id: string | null;
+  facial_record_id: string | null;
+  speech_record_id: string | null;
+  video_record_id: string | null;
+  eeg_confidence: number;
+  facial_confidence: number;
+  speech_confidence: number;
+  video_confidence: number;
+  final_prediction: string;
+  final_confidence: number;
+  date: string;
 }
 
 interface Predictions {
@@ -146,11 +160,12 @@ interface Predictions {
   speech_data_records: SpeechRecord[];
   video_data_records: VideoRecord[];
   facial_data_records: FacialRecord[];
+  multimodal_data_records: MultimodalRecord[]
 }
 
 interface TableColumn<T> {
   header: string;
-  accessor: (item: T, index?: number) => string;
+  accessor: (item: T, index?: number) => string | ReactNode;
 }
 
 interface EditProfileFormData {
@@ -550,6 +565,7 @@ export default function PatientInfo() {
     speech_data_records: [],
     video_data_records: [],
     facial_data_records: [],
+    multimodal_data_records: []
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("patient-information");
@@ -699,6 +715,10 @@ export default function PatientInfo() {
           ? data.facial_predictions
           : [];
 
+        const multimodalPredictions = Array.isArray(data.multimodal_predictions)
+          ? data.multimodal_predictions
+          : [];
+
         // Format facial records for the state
         const formattedFacialRecords = facialPredictions.map((record: any) => ({
           id: record.id || String(Date.now()),
@@ -768,6 +788,7 @@ export default function PatientInfo() {
             created_at: record.created_at || "-",
             confidence: record.confidence || 0,
           })),
+          multimodal_data_records: multimodalPredictions
         });
       } catch (error) {
         console.error("Error fetching predictions:", error);
@@ -776,6 +797,7 @@ export default function PatientInfo() {
           speech_data_records: [],
           video_data_records: [],
           facial_data_records: [],
+          multimodal_data_records: [],
         });
       }
     }
@@ -798,7 +820,7 @@ export default function PatientInfo() {
             prediction_result_in_category: data.prediction_result_in_category,
             created_at: data.created_at,
             prediction_result_in_probability:
-              data.prediction_result_in_probability || 0,
+            data.prediction_result_in_probability || 0,
             updated_at: data.updated_at || new Date().toISOString(),
             delta_F_sx: data.delta_F_sx,
             delta_F_dx: data.delta_F_dx,
@@ -814,7 +836,7 @@ export default function PatientInfo() {
             gamma_F_dx: data.gamma_F_dx,
             predicted_probabilities: data.predicted_probabilities,
             prediction_result_in_encoded_category:
-              data.prediction_result_in_encoded_category,
+            data.prediction_result_in_encoded_category,
             group: data.group,
             time_point: data.time_point,
             patient_id: data.patient_id,
@@ -1216,13 +1238,13 @@ export default function PatientInfo() {
   const handleMultimodalUpload = async () => {
     if (!multimodalFile || !multimodalEEGData) return;
 
-    // setIsMultimodalUploading(true);
+    setIsMultimodalUploading(true);
     setMultimodalUploadError(null);
 
     let formData = new FormData();
     formData.append("image", multimodalFile.image!);
     formData.append("speech", multimodalFile.speech!);
-    formData.append("video", multimodalFile.speech!);
+    formData.append("video", multimodalFile.video!);
     formData.append("eeg", JSON.stringify(multimodalEEGData));
 
     try {
@@ -1239,9 +1261,51 @@ export default function PatientInfo() {
       );
 
       const data = await response.json();
-      console.log(data);
+      setIsMultimodalUploading(() => false)
+      setPredictions((prev) => ({
+        speech_data_records: [
+          ...prev.speech_data_records,
+          {
+            ...data.speech_record,
+            _id: data.data.speech_record_id,
+            id: data.data.speech_record_id
+          }
+        ],
+        facial_data_records: [
+          ...prev.facial_data_records,
+          {
+            id: data.data.facial_record_id,
+            _id: data.data.facial_record_id,
+            ...data.facial_record
+          }
+        ],
+        video_data_records: [
+          ...prev.video_data_records,
+          {
+            id: data.data.video_record_id,
+            _id: data.data.video_record_id,
+            ...data.video_record,
+          }
+        ],
+        eeg_data_records: [
+          ...prev.eeg_data_records,
+          {
+            ...data.eeg_record,
+            id: data.data.eeg_record_id,
+            _id: data.data.eeg_record_id,
+          }
+        ],
+        multimodal_data_records: [
+          ...prev.multimodal_data_records,
+          data.data
+        ]
+      }))
+      setShowMultimodalModal(() => false)
+      console.log(data)
+      toast.success("Multimodal Data predicted Successfully")
     } catch (error) {
       console.log(error);
+      setIsMultimodalUploading(() => false)
     }
 
     // try {
@@ -1389,7 +1453,7 @@ export default function PatientInfo() {
   };
 
   const renderSpeechRecords = () => {
-    const records: SpeechRecord[] = predictions?.speech_data_records ?? [];
+    const records: SpeechRecord[] = predictions?.speech_data_records.filter(s => !s.multimodal) ?? [];
 
     if (records.length === 0) {
       return (
@@ -1438,8 +1502,132 @@ export default function PatientInfo() {
     ] as TableColumn<SpeechRecord>[]);
   };
 
+  const renderMultimodalRecords = () => {
+    const records = predictions?.multimodal_data_records || [];
+
+    return renderTable(
+      records as MultimodalRecord[], 
+      [
+        {
+          header: "Record #",
+          accessor: (_, i) => String((i || 0) + 1),
+        },
+        {
+          header: "Created At",
+          accessor: (rec: MultimodalRecord) => {
+            return new Date(rec.date.substring(0, 23)).toDateString()
+          }
+        },
+        {
+          header: "Prediction",
+          accessor: (rec: MultimodalRecord) => {
+            return rec.final_prediction 
+          }
+        },
+        {
+          header: "Confidence",
+          accessor: (rec: MultimodalRecord) => {
+            return (rec.final_confidence*100).toFixed(2).toString() + "%"
+          }
+        },
+        {
+          header: "Video Record",
+          accessor: (rec: MultimodalRecord) => {
+            const record = predictions.video_data_records.find(e => e.id == rec.video_record_id)!
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                onClick={() => openVideoPlayer(record)}
+              >
+                <Eye size={18} />
+              </Button>
+            );
+          }
+        },
+        {
+          header: "Speech Record",
+          accessor: (rec: MultimodalRecord) => {
+            const record = predictions.speech_data_records.find(e => e.id == rec.speech_record_id)!
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                onClick={() => openSpeechPlayer(record)}
+              >
+                <Eye size={18} />
+              </Button>
+            )
+          }
+        },
+        {
+          header: "EEG Record",
+          accessor: (rec: MultimodalRecord) => {
+            const record = predictions.eeg_data_records.find(e => e.id == rec.eeg_record_id)!
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                onClick={() => openEEGAnalysis({
+                            _id: record.id,
+                            patient_id: record.patient_id,
+                            doctor_id: record.doctor_id,
+                            created_at: record.created_at,
+                            updated_at: record.updated_at || "",
+                            delta_F_sx: record.delta_F_sx,
+                            delta_F_dx: record.delta_F_dx,
+                            theta_F_sx: record.theta_F_sx,
+                            theta_F_dx: record.theta_F_dx,
+                            low_alpha_F_sx: record.low_alpha_F_sx,
+                            low_alpha_F_dx: record.low_alpha_F_dx,
+                            high_alpha_F_sx: record.high_alpha_F_sx,
+                            high_alpha_F_dx: record.high_alpha_F_dx,
+                            beta_F_sx: record.beta_F_sx,
+                            beta_F_dx: record.beta_F_dx,
+                            gamma_F_sx: record.gamma_F_sx,
+                            gamma_F_dx: record.gamma_F_dx,
+                            prediction_result_in_probability:
+                              record.prediction_result_in_probability || 0,
+                            predicted_probabilities:
+                              record.predicted_probabilities,
+                            prediction_result_in_encoded_category:
+                              record.prediction_result_in_encoded_category,
+                            prediction_result_in_category:
+                              record.prediction_result_in_category,
+                            group: record.group,
+                            time_point: record.time_point,
+                })}
+              >
+                <Eye size={18} />
+              </Button>
+            )
+          },
+        },
+        {
+          header: "Facial Record",
+          accessor: (rec: MultimodalRecord) => {
+            const record = predictions.facial_data_records.find(f => f.id == rec.facial_record_id)!
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                onClick={() => openFacialPreview(record)}
+              >
+                <Eye size={18} />
+              </Button>
+            )
+          }
+        }
+      ]
+    )
+  }
+
   const renderVideoRecords = () => {
-    const records = predictions?.video_data_records || [];
+    const records = predictions?.video_data_records.filter(v => !v.multimodal) || [];
 
     return renderTable(
       records as VideoRecord[],
@@ -1667,7 +1855,7 @@ export default function PatientInfo() {
                   Add EEG Record
                 </Button>
               </div>
-              {renderTable(predictions.eeg_data_records, [
+              {renderTable(predictions.eeg_data_records.filter(e => !e.multimodal), [
                 {
                   header: "Record #",
                   accessor: (_, i: number) => String(i + 1),
@@ -1764,7 +1952,7 @@ export default function PatientInfo() {
                 </Button>
               </div>
               {renderTable(
-                predictions.facial_data_records as FacialRecord[],
+                predictions.facial_data_records.filter(f => !f.multimodal) as FacialRecord[],
                 [
                   {
                     header: "Record #",
@@ -1790,7 +1978,7 @@ export default function PatientInfo() {
                   {
                     header: "Created At",
                     accessor: (rec: FacialRecord) =>
-                      new Date(rec.created_at.substring(0, 23)).toDateString(),
+                      new Date((rec.created_at || rec.date).substring(0, 23)).toDateString(),
                   },
                   {
                     header: "Actions",
@@ -1824,24 +2012,7 @@ export default function PatientInfo() {
                   Add Multimodal Record
                 </Button>
               </div>
-              {renderTable(
-                (patient.multimodal_records || []) as MultimodalRecord[],
-                [
-                  {
-                    header: "Record #",
-                    accessor: (_: MultimodalRecord, i: number) => String(i + 1),
-                  },
-                  {
-                    header: "Details",
-                    accessor: (rec: MultimodalRecord) => rec.details || "-",
-                  },
-                  {
-                    header: "Created At",
-                    accessor: (rec: MultimodalRecord) =>
-                      new Date(rec.created_at).toLocaleString(),
-                  },
-                ] as TableColumn<MultimodalRecord>[]
-              )}
+              {renderMultimodalRecords()}
             </div>
           </TabContent>
 
@@ -2333,7 +2504,7 @@ export default function PatientInfo() {
               <div className="mb-6">
                 <p className="text-gray-400 mb-2">Created At:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                  {new Date(selectedFacialRecord.created_at).toDateString()}
+                  {new Date(selectedFacialRecord.created_at || selectedFacialRecord.date).toDateString()}
                 </p>
               </div>
 
@@ -2394,7 +2565,7 @@ export default function PatientInfo() {
               <div className="mb-6">
                 <p className="text-gray-400 mb-2">Created At:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                  {new Date(selectedSpeechRecord.created_at).toLocaleString()}
+                  {new Date(selectedSpeechRecord.created_at).toDateString()}
                 </p>
               </div>
 
@@ -2469,7 +2640,7 @@ export default function PatientInfo() {
               <div>
                 <p className="text-gray-400 mb-1">Created At:</p>
                 <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                  {new Date(selectedVideoRecord.created_at).toLocaleString()}
+                  {new Date(selectedVideoRecord.created_at).toDateString()}
                 </p>
               </div>
             </div>

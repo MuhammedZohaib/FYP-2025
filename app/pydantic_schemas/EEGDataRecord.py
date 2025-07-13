@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
+from typing import Optional
 
 
 class EegDataRecordSchema(BaseModel):
@@ -26,3 +27,4 @@ class EegDataRecordSchema(BaseModel):
     predicted_probabilities: List[float]
     prediction_result_in_encoded_category: int
     prediction_result_in_category: str
+    multimodal: Optional[bool] = False

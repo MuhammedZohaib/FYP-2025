@@ -14,7 +14,7 @@ cloudinary.config(
     api_secret=os.getenv("API_SECRET")
 )
 
-async def upload_audio_to_cloudinary(audio_content, patient_id) -> str:
+async def upload_audio_to_cloudinary(audio_content, patient_id, path="fyp-audio") -> str:
     try:
         # Create a BytesIO object to upload the file
         audio_stream = BytesIO(audio_content)
@@ -24,7 +24,7 @@ async def upload_audio_to_cloudinary(audio_content, patient_id) -> str:
             audio_stream,
             resource_type='video',  # Audio files are treated as 'video' in Cloudinary
             public_id=f"audio/{patient_id}_{datetime.now().timestamp()}",  # Optional: Customize public ID
-            folder="fyp-audio",  # Optional: You can specify a folder for organization
+            folder=path,  # Optional: You can specify a folder for organization
             use_filename=True,  # Preserve the original filename
             unique_filename=True  # Ensures unique filename in Cloudinary
         )
@@ -36,7 +36,7 @@ async def upload_audio_to_cloudinary(audio_content, patient_id) -> str:
         raise HTTPException(status_code=500, detail=f"Cloudinary upload failed: {str(e)}")
 
 
-async def upload_video_to_cloudinary(video_content, patient_id) -> str:
+async def upload_video_to_cloudinary(video_content, patient_id, path="fyp-video") -> str:
     try:
         # Create a BytesIO object to upload the file
         video_stream = BytesIO(video_content)
@@ -46,7 +46,7 @@ async def upload_video_to_cloudinary(video_content, patient_id) -> str:
             video_stream,
             resource_type='video',  # Audio files are treated as 'video' in Cloudinary
             public_id=f"audio/{patient_id}_{datetime.now().timestamp()}",  # Optional: Customize public ID
-            folder="fyp-video",  # Optional: You can specify a folder for organization
+            folder=path,  # Optional: You can specify a folder for organization
             use_filename=True,  # Preserve the original filename
             unique_filename=True  # Ensures unique filename in Cloudinary
         )
@@ -57,7 +57,7 @@ async def upload_video_to_cloudinary(video_content, patient_id) -> str:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cloudinary upload failed: {str(e)}")
 
-async def upload_image_to_cloudinary(image_content, patient_id) -> str:
+async def upload_image_to_cloudinary(image_content, patient_id, path="fyp-image") -> str:
     try:
         video_stream = BytesIO(image_content)
 
@@ -66,7 +66,7 @@ async def upload_image_to_cloudinary(image_content, patient_id) -> str:
             video_stream,
             resource_type='image',  # Audio files are treated as 'video' in Cloudinary
             public_id=f"audio/{patient_id}_{datetime.now().timestamp()}",  # Optional: Customize public ID
-            folder="fyp-image",  # Optional: You can specify a folder for organization
+            folder=path,  # Optional: You can specify a folder for organization
             use_filename=True,  # Preserve the original filename
             unique_filename=True  # Ensures unique filename in Cloudinary
         )

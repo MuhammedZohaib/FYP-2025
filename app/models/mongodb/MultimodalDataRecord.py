@@ -60,20 +60,23 @@ class MultimodalDataRecord:
         }
 
     def save(self):
-        collection = db["multimodal_data_records"]
+        collection = db.get_collection("multimodal_data_records")
         result = collection.insert_one(self.to_dict())
         return str(result.inserted_id)
 
     @staticmethod
     def find_by_patient_id(patient_id: str) -> List[Dict]:
-        collection = db["multimodal_data_records"]
-        records = collection.find({"patient_id": patient_id}).sort("date", -1)
-        return [{**record, "_id": str(record["_id"])} for record in records]
+        collection = db.get_collection("multimodal_data_records")
+        records = list(collection.find({"patient_id": patient_id}))
+        for record in records:
+            record["_id"] = str(record["_id"])
+        return records
 
     @staticmethod
     def find_by_id(record_id: str) -> Optional[Dict]:
-        collection = db["multimodal_data_records"]
+        collection = db.get_collection("multimodal_data_records")
         record = collection.find_one({"_id": ObjectId(record_id)})
         if record:
             record["_id"] = str(record["_id"])
         return record 
+

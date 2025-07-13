@@ -14,7 +14,7 @@ class EEGDataRecord:
                  prediction_result_in_encoded_category: int, prediction_result_in_category: str,
                  group: int = None, time_point: int = None, high_alpha_F_sx: str = None,
                  high_alpha_F_dx: str = None, beta_F_sx: str = None, beta_F_dx: str = None,
-                 gamma_F_sx: str = None, gamma_F_dx: str = None):
+                 gamma_F_sx: str = None, gamma_F_dx: str = None, multimodal = False):
         self.patient_id = patient_id
         self.doctor_id = doctor_id
         self.created_at = created_at
@@ -37,6 +37,7 @@ class EEGDataRecord:
         self.beta_F_dx = beta_F_dx
         self.gamma_F_sx = gamma_F_sx
         self.gamma_F_dx = gamma_F_dx
+        self.multimodal = multimodal
 
     def save(self):
         collection = db.get_collection('eeg_data')
