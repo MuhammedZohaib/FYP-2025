@@ -194,7 +194,7 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
                                                 prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
                                                 prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
                                                 prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
-                                                prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+                                                prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model, multimodal=False)
     facial_record = FacialDataRecord(patient_id=patient_id, data=cloudianry_url, prediction=str(prediction),
                                      confidence=float(combined_conf), date=datetime.now(),
                                      prediction_result_in_probability_of_efficentnet_model=prediction_result_in_probability_of_efficentnet_model,
@@ -204,7 +204,7 @@ async def upload_image(patient_id: str, request: Request, image: UploadFile = Fi
                                      prediction_result_in_encoded_category_of_efficentnet_model=prediction_result_in_encoded_category_of_efficentnet_model,
                                      prediction_result_in_encoded_category_of_yolo_model=prediction_result_in_encoded_category_of_yolo_model,
                                      prediction_result_in_category_of_efficentnet_model=prediction_result_in_category_of_efficentnet_model,
-                                     prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model)
+                                     prediction_result_in_category_of_yolo_model=prediction_result_in_category_of_yolo_model, multimodal=False)
     facial_record_id = facial_record.save()
     if not facial_record_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add facial record")
