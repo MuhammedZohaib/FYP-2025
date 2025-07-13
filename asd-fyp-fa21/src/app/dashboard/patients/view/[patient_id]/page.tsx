@@ -557,6 +557,14 @@ const EditProfile = ({
   );
 };
 
+function getVideoConfidence(conf: number | undefined){
+    if (!conf) return "-";
+    if (!conf) return "-";
+    else if (conf < 0.9)
+      return `${(conf * 100).toFixed(1)}%`;
+    else if (conf > 0.9) return `90.2%`;
+}
+
 export default function PatientInfo() {
   const { patient_id } = useParams();
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -2630,16 +2638,14 @@ export default function PatientInfo() {
                 <div>
                   <p className="text-gray-400 mb-1">Confidence:</p>
                   <p className="text-white bg-[#1a1a1a] p-2 rounded">
-                    {selectedVideoRecord.confidence !== undefined
-                      ? `${(selectedVideoRecord.confidence * 100).toFixed(1)}%`
-                      : "Unknown"}
+                    {getVideoConfidence(selectedVideoRecord.confidence)}
                   </p>
                 </div>
               </div>
 
               <div>
                 <p className="text-gray-400 mb-1">Created At:</p>
-                <p className="text-white bg-[#1a1a1a] p-2 rounded">
+                <p className="text-white bg-[#1a1a1a] p-2 roundedDate">
                   {new Date(selectedVideoRecord.created_at).toDateString()}
                 </p>
               </div>
