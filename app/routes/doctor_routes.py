@@ -1,13 +1,16 @@
 import logging
 import os
 from datetime import datetime
+from ssl import HAS_SSLv2
+from typing_extensions import Doc
 import bcrypt
-
+import random
 
 from bson.objectid import ObjectId
 from cloudinary.uploader import upload
-from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File, BackgroundTasks
 from jose import jwt
+from cloud.resend_client import send_reset_email
 
 from auth import authenticate_doctor, create_access_token, verify_token
 from keys import SECRET_KEY
@@ -16,6 +19,7 @@ from models.mongodb.Patient import Patient
 from pydantic_schemas.AddConsultationRequest import AddConsultationRequestSchema
 from pydantic_schemas.Doctor import DoctorSchema
 from pydantic_schemas.LoginDoctor import LoginDoctorSchema
+from pydantic_schemas.ResetPasswordSchema import RequestResetSchema, ConfirmCodeSchema, NewPasswordSchema
 from pydantic_schemas.UpdateDoctorProfile import UpdateDoctorProfileSchema
 from pydantic_schemas.UpdatePassword import UpdatePasswordSchema
 
@@ -66,6 +70,46 @@ def login_doctor(doctor: LoginDoctorSchema):
         'success': True
     }
 
+reset_codes = {}
+
+def generate_reset_code():
+    return f"{random.randint(0, 999999):06}"
+
+@router.post("/reset-password/request", status_code=status.HTTP_200_OK)
+def request_password_reset(data: RequestResetSchema, background_tasks: BackgroundTasks):
+    doctor = Doctor.find_by_email(data.email)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor with this email does not exist")
+
+    code = generate_reset_code()
+    reset_codes[data.email] = code
+
+    background_tasks.add_task(send_reset_email, data.email, code)
+
+    return {"detail": "Reset code sent to your email", "success": True}
+
+@router.post("/reset-password/confirm", status_code=status.HTTP_200_OK)
+def confirm_reset_password(data: ConfirmCodeSchema):
+    stored_code = reset_codes.get(data.email)
+    if not stored_code or stored_code != data.code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+
+    doctor = Doctor.find_by_email(data.email)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    # Optionally delete the code after use
+    del reset_codes[data.email]
+
+    return {"detail": "Code Confirmed", "success": True}
+
+@router.post("/reset-password/new", status_code=status.HTTP_200_OK)
+def set_new_password(data: NewPasswordSchema):
+    
+    hashed_password = bcrypt.hashpw(data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    Doctor.change_password(data.email, hashed_password)
+    
+    return {"detail": "New Password Set.", "success": True}
 
 
 @router.get('/profile', status_code=status.HTTP_200_OK)

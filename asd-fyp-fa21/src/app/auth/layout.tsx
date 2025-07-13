@@ -8,6 +8,7 @@ import FooterAuth from "@/components/ui/footer-auth";
 import { BackgroundLines } from "@/components/ui/background-lines";
 import { AnimatedTestimonialsDemo } from "@/components/testimonialDemo";
 import { useEffect, useState } from "react";
+import { Toaster } from "sonner";
 
 const inter = Inter();
 
@@ -50,6 +51,7 @@ export default function AuthLayout({
         </div>
         <FooterAuth />
       </BackgroundLines>
+      <Toaster />
     </main>
   );
 }

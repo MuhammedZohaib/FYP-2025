@@ -7,7 +7,7 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 
 def send_reset_email(to_email: str, code: str):
     return resend.Emails.send({
-        "from": "YourApp <no-reply@yourdomain.com>",
+        "from": "ASD AI <no-reply@ash-dev.me>",
         "to": [to_email],
         "subject": "Reset Your Password",
         "html": f"""
